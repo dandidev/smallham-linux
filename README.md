@@ -64,3 +64,39 @@ chmod +x setup-links.sh
 ```shell
 qemu-system-x86_64 -kernel arch/x86/boot/bzImage -initrd ../../init.cpio
 ```
+
+# Install ham tools
+## download
+https://linux-ax25.in-berlin.de/pub/
+
+## ax25-lib
+```shell
+./configure --prefix=/usr --enable-static
+make
+make DESTDIR=../../initroot/ install
+```
+
+## ax25-tools (TODO: push new code)
+```shell
+./configure \
+  --prefix=/usr \
+  CPPFLAGS="-I$PWD/../../initroot/usr/include" \
+  LDFLAGS="-L$PWD/../../initroot/usr/lib"
+
+./configure --prefix=/usr --without-x
+make LDFLAGS="-static" -j4
+make DESTDIR=../../initroot/ install
+```
+
+## ax25-apps (TODO: push new code)
+```shell
+./configure \
+  --prefix=/usr \
+  CPPFLAGS="-I$PWD/../../initroot/usr/include" \
+  LDFLAGS="-L$PWD/../../initroot/usr/lib"
+make
+make DESTDIR=../../initroot/ install
+```
+
+# TODO's
+- strip apply to binaries
