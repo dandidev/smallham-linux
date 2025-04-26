@@ -26,7 +26,15 @@ make menuconfig
 - Network support
 - - Amateur Radio sipport -> ALL and ALL SUB
 - - Netlink interface for ethtool
-
+- TSC clocksource support
+```shell
+cat .config | grep CONFIG_X86_TSC
+sed -i 's/CONFIG_X86_TSC=y/# CONFIG_X86_TSC is not set/' .config
+- Device Drivers
+- - Generic Driver Options
+- - - Maintain a devtmpfs filesystem to mount at /dev
+- - - Automount devtmpfs at /dev, after the kernel mounted the rootfs
+``` 
 # Make
 make -j 4
 
@@ -96,6 +104,11 @@ make DESTDIR=../../initroot/ install
   LDFLAGS="-L$PWD/../../initroot/usr/lib"
 make
 make DESTDIR=../../initroot/ install
+```
+
+# Qemu
+```shell
+qemu-system-x86_64 -kernel arch/x86/boot/bzImage -initrd ../../init.cpio -append notsc
 ```
 
 # TODO's

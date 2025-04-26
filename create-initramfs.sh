@@ -14,8 +14,8 @@ mkdir -p "$BIN_DIR" "$DEV_DIR" "$PROC_DIR" "$SYS_DIR"
 
 # Create minimal /dev
 echo "Creating /dev entries..."
-sudo mknod -m 600 "$DEV_DIR/console" c 5 1
-sudo mknod -m 666 "$DEV_DIR/tty" c 5 0
+mknod -m 600 "$DEV_DIR/console" c 5 1
+mknod -m 666 "$DEV_DIR/tty" c 5 0
 
 # Create init script
 echo "Creating init script..."
@@ -23,13 +23,10 @@ cat > "$INIT_FILE" << 'EOF'
 #!/bin/sh
 mount -t proc none /proc
 mount -t sysfs none /sys
+mount -t devtmpfs none /dev
 echo "## HAM Linux booted."
-exec /bin/sh
-while true; do
-    echo "Shell exited. Rebooting in 5s..."
-    sleep 5
-    reboot -f
-done
+/bin/getty -n -l /bin/sh 0 /dev/console &
+exec sleep infinity
 EOF
 
 chmod +x "$INIT_FILE"

@@ -19,6 +19,8 @@ cd "$BIN_DIR" || {
 ln -s busybox sh
 ln -s busybox ash
 
+ln -s busybox getty
+
 # Filesystem utilities
 ln -s busybox ls
 ln -s busybox cat
