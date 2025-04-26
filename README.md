@@ -13,7 +13,7 @@ make menuconfig
 
 ## Settings
 - 64-bit kernel
-- General setuo
+- General setup
 - - Initial RAM filesystem and RAM disk
 - - Only Initramfs source files
 - - Configure standard kernel features (exprt users)
@@ -21,11 +21,25 @@ make menuconfig
 - Device drivers
 - - Character drivers
 - - - Enable TTY
+- - Network driver support
+- - - Network core driver support
+- - - Ethernet driver support
+- - - - Intel E1000 driver, AMD PCnet32 driver
+- - - OFF: Wireless LAN
 - Executable file formats
 - - Kernel support for ELF binaries
 - Network support
 - - Amateur Radio sipport -> ALL and ALL SUB
 - - Netlink interface for ethtool
+- Netwok options
+- - Packet socket
+- - Unix domain socket
+- - TCP/IP networking
+- - - INET: socket monitoring interface
+- - - UDP: socker monitoring interface
+- - - IP: kernel level autoconfiguration
+- - - IP: DHCP support
+- - - OFF: IPv6 protocol
 - TSC clocksource support
 ```shell
 cat .config | grep CONFIG_X86_TSC
@@ -34,6 +48,7 @@ sed -i 's/CONFIG_X86_TSC=y/# CONFIG_X86_TSC is not set/' .config
 - - Generic Driver Options
 - - - Maintain a devtmpfs filesystem to mount at /dev
 - - - Automount devtmpfs at /dev, after the kernel mounted the rootfs
+
 ``` 
 # Make
 make -j 4
@@ -137,4 +152,13 @@ genisoimage -o mylinux.iso \
   iso/
 ```
 
+# IP settings
+```shell
+ip link set eth0 up
+udhcpc -i eth0
+ifconfig eth0 10.0.2.15 netmask 255.255.255.0 up
+route add default gw 10.0.2.2
+```
+
 # TODO's
+- busybox build only used package

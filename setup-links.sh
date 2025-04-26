@@ -59,6 +59,8 @@ ln -s busybox ipcalc
 
 # Miscellaneous utilities
 ln -s busybox echo
+ln -s busybox grep
+ln -s busybox less
 ln -s busybox uname
 ln -s busybox ps
 ln -s busybox kill
