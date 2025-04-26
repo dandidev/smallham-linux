@@ -25,6 +25,11 @@ mount -t proc none /proc
 mount -t sysfs none /sys
 echo "## HAM Linux booted."
 exec /bin/sh
+while true; do
+    echo "Shell exited. Rebooting in 5s..."
+    sleep 5
+    reboot -f
+done
 EOF
 
 chmod +x "$INIT_FILE"
