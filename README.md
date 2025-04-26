@@ -79,31 +79,41 @@ https://linux-ax25.in-berlin.de/pub/
 
 ## ax25-lib
 ```shell
-./configure --prefix=/usr --enable-static
-make
+#autoreconf -fi
+CFLAGS="-Os" LDFLAGS="-s" ./configure --prefix=/usr --enable-static
+make -j$(nproc)
 make DESTDIR=../../initroot/ install
 ```
 
 ## ax25-tools (TODO: push new code)
 ```shell
-./configure \
+CFLAGS="-Os" LDFLAGS="-s" ./configure \
   --prefix=/usr \
   CPPFLAGS="-I$PWD/../../initroot/usr/include" \
-  LDFLAGS="-L$PWD/../../initroot/usr/lib"
-
-./configure --prefix=/usr --without-x
-make LDFLAGS="-static" -j4
+  LDFLAGS="-L$PWD/../../initroot/usr/lib" \
+  --prefix=/usr --without-x
+make LDFLAGS="-static" -j$(nproc)
 make DESTDIR=../../initroot/ install
 ```
 
 ## ax25-apps (TODO: push new code)
 ```shell
-./configure \
+# libtoolize --force --copy
+# aclocal
+# autoheader
+# automake --add-missing
+# autoconf
+CFLAGS="-Os" LDFLAGS="-s" ./configure \
   --prefix=/usr \
   CPPFLAGS="-I$PWD/../../initroot/usr/include" \
   LDFLAGS="-L$PWD/../../initroot/usr/lib"
-make
+make -j$(nproc)
 make DESTDIR=../../initroot/ install
+```
+
+# Strip all binaries in initroot
+```shell
+find initroot -type f -executable -exec strip {} \;
 ```
 
 # Qemu
@@ -112,4 +122,4 @@ qemu-system-x86_64 -kernel arch/x86/boot/bzImage -initrd ../../init.cpio -append
 ```
 
 # TODO's
-- strip apply to binaries
+- create mini iso
