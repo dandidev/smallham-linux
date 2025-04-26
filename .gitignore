@@ -1,3 +1,9 @@
 /cloned
 /initroot
 init.cpio
+
+bzImage
+isolinux.bin
+ldlinux.c32
+
+mylinux.iso

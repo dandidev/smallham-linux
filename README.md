@@ -121,5 +121,20 @@ find initroot -type f -executable -exec strip {} \;
 qemu-system-x86_64 -kernel arch/x86/boot/bzImage -initrd ../../init.cpio -append notsc
 ```
 
+# Create ISO
+```shell
+# sudo pacman -S syslinux
+mkdir -p iso/isolinux
+cp /usr/lib/syslinux/bios/isolinux.bin iso/isolinux
+cp /usr/lib/syslinux/bios/ldlinux.c32 iso/isolinux
+cp init.cpio iso
+cp cloned/linux/arch/x86/boot/bzImage iso
+genisoimage -o mylinux.iso \
+  -b isolinux/isolinux.bin \
+  -c isolinux/boot.cat \
+  -no-emul-boot -boot-load-size 4 -boot-info-table \
+  -iso-level 3 -quiet \
+  iso/
+```
+
 # TODO's
-- create mini iso
