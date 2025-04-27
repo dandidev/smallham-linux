@@ -28,6 +28,12 @@ make menuconfig
 - - - Ethernet driver support
 - - - - Intel E1000 driver, AMD PCnet32 driver
 - - - OFF: Wireless LAN
+- - OFF: HID bus support
+- - OFF: I2C support
+- - Input device support
+- - - OFF: Mice
+- - Misc devices
+- - - OFF: Intel Management Engine Interface
 - Executable file formats
 - - Kernel support for ELF binaries
 - Network support
@@ -43,6 +49,7 @@ make menuconfig
 - - - IP: DHCP support
 - - - OFF: IPv6 protocol
 - TSC clocksource support
+- OFF: Bus options
 ```shell
 cat .config | grep CONFIG_X86_TSC
 sed -i 's/CONFIG_X86_TSC=y/# CONFIG_X86_TSC is not set/' .config
@@ -51,6 +58,12 @@ sed -i 's/CONFIG_X86_TSC=y/# CONFIG_X86_TSC is not set/' .config
 - - Generic Driver Options
 - - - Maintain a devtmpfs filesystem to mount at /dev
 - - - Automount devtmpfs at /dev, after the kernel mounted the rootfs
+
+```shell
+cat .config | grep CONFIG_DEBUG_KERNEL
+sed -i 's/CONFIG_DEBUG_KERNEL=y/CONFIG_DEBUG_KERNEL=n/' .config
+```
+
 ``` 
 # Make
 make -j 4
