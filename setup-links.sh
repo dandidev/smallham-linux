@@ -17,8 +17,6 @@ cd "$BIN_DIR" || {
 
 # Shell
 ln -s busybox sh
-ln -s busybox ash
-
 ln -s busybox init
 ln -s busybox getty
 
@@ -57,7 +55,6 @@ ln -s busybox nslookup
 ln -s busybox udhcpc
 ln -s busybox dhcprelay
 ln -s busybox route
-ln -s busybox ping6
 ln -s busybox ipcalc
 
 # Miscellaneous utilities
@@ -67,10 +64,13 @@ ln -s busybox less
 ln -s busybox uname
 ln -s busybox ps
 ln -s busybox kill
+ln -s busybox clear
+
 
 # Disk usage information
 ln -s busybox df
 ln -s busybox du
 
+# Busybox Init
 cd ..
 ln -s bin/busybox init

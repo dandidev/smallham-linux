@@ -18,6 +18,8 @@ make menuconfig
 - - Only Initramfs source files
 - - Configure standard kernel features (exprt users)
 - - - Enable support for printk
+- - - Enabled futex support
+- - - Posix Clocks & timers /CONFIG_POSIX_TIMERS=y/
 - Device drivers
 - - Character drivers
 - - - Enable TTY
@@ -44,11 +46,11 @@ make menuconfig
 ```shell
 cat .config | grep CONFIG_X86_TSC
 sed -i 's/CONFIG_X86_TSC=y/# CONFIG_X86_TSC is not set/' .config
+```
 - Device Drivers
 - - Generic Driver Options
 - - - Maintain a devtmpfs filesystem to mount at /dev
 - - - Automount devtmpfs at /dev, after the kernel mounted the rootfs
-
 ``` 
 # Make
 make -j 4
