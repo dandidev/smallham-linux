@@ -181,3 +181,4 @@ route add default gw 10.0.2.2
 # TODO's
 - busybox build only used package
 - full build use makefile
+- makefile build switch option: basic, ham, etc
