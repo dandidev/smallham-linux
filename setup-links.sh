@@ -19,6 +19,7 @@ cd "$BIN_DIR" || {
 ln -s busybox sh
 ln -s busybox ash
 
+ln -s busybox init
 ln -s busybox getty
 
 # Filesystem utilities
@@ -32,7 +33,9 @@ ln -s busybox touch
 ln -s busybox mount
 ln -s busybox umount
 ln -s busybox dmesg
+ln -s busybox setsid
 ln -s busybox reboot
+ln -s busybox top
 
 # Kernel module management
 ln -s busybox insmod
@@ -68,3 +71,6 @@ ln -s busybox kill
 # Disk usage information
 ln -s busybox df
 ln -s busybox du
+
+cd ..
+ln -s bin/busybox init
