@@ -1,5 +1,9 @@
 /cloned
-/initroot
+/initroot/bin/*
+/initroot/sbin/*
+/initroot/dev/*
+/initroot/init
+
 init.cpio
 
 bzImage

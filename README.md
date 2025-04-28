@@ -53,6 +53,7 @@ make menuconfig
 - File systems
 - - Presudo filesystems
 - - /proc file system support
+- - /sys file system support
 ```shell
 cat .config | grep CONFIG_X86_TSC
 sed -i 's/CONFIG_X86_TSC=y/# CONFIG_X86_TSC is not set/' .config
