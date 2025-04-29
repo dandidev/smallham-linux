@@ -7,13 +7,14 @@ OUT="build/$combo"
 KOBJ="$OUT/kernel"
 BBOBJ="$OUT/busybox"
 INIT="$OUT/initroot"
+ISO="$OUT/iso"
 
 echo $OUT
 echo "Clean environment..."
 rm -rf "$OUT"
 
 echo "Init folders..."
-mkdir -p "$KOBJ" "$BBOBJ" "$INIT"
+mkdir -p "$KOBJ" "$BBOBJ" "$INIT" "$ISO"
 
 echo "Recreate current symlink..."
 ln -sfn "$combo" build/current
@@ -26,5 +27,8 @@ cp modules/mini/busybox.config "$BBOBJ/.config"
 
 echo "Copy initroot fs..."
 rsync -a modules/mini/initroot/  "$INIT/"
+
+echo "Copy iso fs..."
+rsync -a iso/  "$ISO/"
 
 echo "Preparation successful!" 

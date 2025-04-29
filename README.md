@@ -156,6 +156,10 @@ qemu-system-x86_64 -kernel arch/x86/boot/bzImage -initrd ../../init.cpio -append
 ```
 
 # Create ISO
+- dependencies
+- - sudo pacman -S syslinux
+- - sudo pacman -S genisoiamge
+- script
 ```shell
 # sudo pacman -S syslinux
 mkdir -p iso/isolinux
@@ -181,6 +185,14 @@ route add default gw 10.0.2.2
 
 # TODO's
 - busybox build only used package -ok, but not enought
+- - logname
+- - groups
 - full build use makefile
 - makefile build switch option: basic, ham, etc
 - bootchart optimalization
+- makefile add required tools
+- init.cpio rename to initramfs.cpio
+- create module to overlayfs support
+- create module to kiss package manager (kiss pm, certs, wget ssl)
+- az alaprendszerből is lehessen akár kézzel felépíteni
+- fix poweroff

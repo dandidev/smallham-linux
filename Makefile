@@ -3,8 +3,10 @@ KOBJ  := $(BUILD)/kernel
 BBOBJ := $(BUILD)/busybox
 INIT  := $(BUILD)/initroot
 CPIO  := $(BUILD)/init.cpio
+ISO   := $(BUILD)/iso
+ISOIMG := $(BUILD)/my-linux.iso
 
-.PHONY: all run clean busybox distclean
+.PHONY: all run clean busybox distclean iso
 
 all: $(CPIO)
 
@@ -38,6 +40,19 @@ run: all
 	qemu-system-x86_64 -m 40 \
 	    -kernel $(KOBJ)/arch/x86/boot/bzImage \
 	    -initrd $(CPIO) -append "notsc"
+
+iso:
+	cp $(KOBJ)/arch/x86/boot/bzImage $(ISO)
+	cp $(CPIO) $(ISO)/init.cpio
+	cp /usr/lib/syslinux/bios/isolinux.bin $(ISO)/isolinux/
+	cp /usr/lib/syslinux/bios/ldlinux.c32 $(ISO)/isolinux/
+	genisoimage -o $(ISOIMG) \
+	  -b isolinux/isolinux.bin \
+	  -c isolinux/boot.cat \
+	  -no-emul-boot -boot-load-size 4 -boot-info-table \
+	  -iso-level 3 -quiet \
+	  $(ISO)
+	@echo "ISO Created: $(ISOIMG)"
 
 clean:
 	rm -rf build/*
