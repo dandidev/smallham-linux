@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+set -e
+
+combo="mini"
+OUT="build/$combo"
+KOBJ="$OUT/kernel"
+BBOBJ="$OUT/busybox"
+INIT="$OUT/initroot"
+
+echo $OUT
+echo "Clean environment..."
+rm -rf "$OUT"
+
+echo "Init folders..."
+mkdir -p "$KOBJ" "$BBOBJ" "$INIT"
+
+echo "Recreate current symlink..."
+ln -sfn "$combo" build/current
+
+echo "Copy kernel config..."
+cp modules/mini/kernel.config  "$KOBJ/.config"
+
+echo "Copy BusyBox config..."
+cp modules/mini/busybox.config "$BBOBJ/.config"
+
+echo "Copy initroot fs..."
+rsync -a modules/mini/initroot/  "$INIT/"
+
+echo "Preparation successful!" 
