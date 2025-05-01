@@ -185,8 +185,6 @@ route add default gw 10.0.2.2
 
 # TODO's
 - busybox build only used package -ok, but not enought
-- - logname
-- - groups
 - full build use makefile
 - makefile build switch option: basic, ham, etc
 - bootchart optimalization
