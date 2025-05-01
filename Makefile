@@ -16,7 +16,7 @@ $(KOBJ)/.config: modules/mini/kernel.config
 	cp $< $@
 $(KOBJ)/arch/x86/boot/bzImage: $(KOBJ)/.config
 	$(MAKE) -C sources/linux mrproper
-	$(MAKE) -C sources/linux O=$(KOBJ)
+	$(MAKE) -C sources/linux O=$(KOBJ) bzImage modules
 
 busybox: $(BBOBJ)/busybox
 $(BBOBJ)/.config: modules/mini/busybox.config
