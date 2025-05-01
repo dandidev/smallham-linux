@@ -194,3 +194,4 @@ route add default gw 10.0.2.2
 - create module to kiss package manager (kiss pm, certs, wget ssl)
 - az alaprendszerből is lehessen akár kézzel felépíteni
 - fix poweroff
+- confg mosule compression how to
