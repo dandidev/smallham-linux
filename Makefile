@@ -12,20 +12,21 @@ all: kernel busybox $(CPIO)
 
 
 kernel: $(KOBJ)/arch/x86/boot/bzImage
-$(KOBJ)/.config: modules/mini/kernel.config
+$(KOBJ)/.config: modules/base/kernel.config
 	cp $< $@
 $(KOBJ)/arch/x86/boot/bzImage: $(KOBJ)/.config
 	$(MAKE) -C sources/linux mrproper
-	$(MAKE) -C sources/linux O=$(KOBJ) bzImage modules
+	$(MAKE) -C sources/linux O=$(KOBJ) KERNELRELEASE=6.15.0-rc3 olddefconfig
+	$(MAKE) -C sources/linux O=$(KOBJ) KERNELRELEASE=6.15.0-rc3 bzImage modules
 
-busybox: $(BBOBJ)/busybox
-$(BBOBJ)/.config: modules/mini/busybox.config
+busybox: $(INIT)/bin/busybox
+$(BBOBJ)/.config: modules/base/busybox.config
 	cp $< $@
+
 $(BBOBJ)/busybox: $(BBOBJ)/.config $(KOBJ)/arch/x86/boot/bzImage
 	$(MAKE) -C sources/busybox mrproper
 	$(MAKE) -C sources/busybox O=$(BBOBJ)
 
-# BusyBox setup links ----------
 $(INIT)/bin/busybox: $(BBOBJ)/busybox
 	cp $(BBOBJ)/busybox $(INIT)/bin/busybox
 	chmod +x $(INIT)/bin/busybox

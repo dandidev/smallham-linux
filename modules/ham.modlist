@@ -1,0 +1,10 @@
+kernel/net/ax25/ax25.ko
+kernel/net/netrom/netrom.ko
+kernel/net/rose/rose.ko
+kernel/drivers/net/hamradio/6pack.ko
+kernel/drivers/net/hamradio/mkiss.ko
+kernel/drivers/net/hamradio/bpqether.ko
+kernel/drivers/net/hamradio/baycom_ser_fdx.ko
+kernel/drivers/net/hamradio/baycom_ser_hdx.ko
+kernel/drivers/net/hamradio/hdlcdrv.ko
+kernel/drivers/net/hamradio/yam.ko

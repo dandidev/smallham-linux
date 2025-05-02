@@ -1,7 +1,0 @@
-#!/bin/sh
-
-mkdir -p /var/log
-syslogd -O /var/log/messages
-klogd
-
-echo "System initialization complete"

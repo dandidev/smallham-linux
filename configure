@@ -2,8 +2,7 @@
 
 set -e
 
-combo="mini"
-OUT="build/$combo"
+OUT="build/current"
 KOBJ="$OUT/kernel"
 BBOBJ="$OUT/busybox"
 INIT="$OUT/initroot"
@@ -13,10 +12,10 @@ echo "Init folders..."
 mkdir -p "$KOBJ" "$BBOBJ" "$INIT" "$ISO"
 
 echo "Recreate current symlink..."
-ln -sfn "$combo" build/current
+ln -sfn current build/current
 
 echo "Copy initroot fs..."
-rsync -a modules/mini/initroot/  "$INIT/"
+rsync -a modules/base/initroot/  "$INIT/"
 
 echo "Copy iso fs..."
 rsync -a iso/  "$ISO/"

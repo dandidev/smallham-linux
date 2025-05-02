@@ -1,0 +1,4 @@
+kernel/lib/crc-ccitt.ko
+kernel/lib/crc16.ko
+kernel/lib/bitrev.ko
+kernel/lib/crc32.ko

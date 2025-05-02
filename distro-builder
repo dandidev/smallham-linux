@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -e
+
+if [ "$#" -lt 1 ]; then
+  echo "Usage: $0 [-ham] [-fs] [-overlay-fs] ..."
+  exit 1
+fi
+
+BUILD="build/current"
+KOBJ="$BUILD/kernel"
+ROOTFS="$BUILD/initroot"
+MODLIST="$BUILD/modlist.txt"
+MODULES_OUT="$ROOTFS/lib/modules"
+MODULES_SRC="$BUILD" 
+
+mkdir -p "$MODULES_OUT"
+> "$MODLIST"
+
+echo ">>> Adding core module list"
+cat modules/lib.modlist >> "$MODLIST"
+
+for opt in "$@"; do
+  case "$opt" in
+    -base) ;;
+    -fs) cat modules/fs.modlist >> "$MODLIST" ;;
+    -overlay-fs)
+        cat modules/fs.modlist >> "$MODLIST"
+        cat modules/overlay-fs.modlist >> "$MODLIST" ;;
+    -ham) cat modules/ham.modlist >> "$MODLIST" ;;
+    *) echo "Unknown option: $opt" && exit 1 ;;
+  esac
+done
+
+echo ">>> Copying selected modules to rootfs:"
+
+#KERNEL_VER=$(make -s -C sources/linux O="$KOBJ" kernelrelease)
+KERNEL_VER=6.15.0-rc3
+MODULES_OUT="$ROOTFS/lib/modules/$KERNEL_VER"
+
+while read mod; do
+  src="$MODULES_SRC/$mod"
+  dst="$MODULES_OUT/$mod"
+  mkdir -p "$(dirname "$dst")"
+  if [ -f "$src" ]; then
+    cp "$src" "$dst"
+    echo "  + $mod"
+  else
+    echo "Missing module: $mod"
+  fi
+done < "$MODLIST"
+
+echo ">>> Running depmod for module dependency resolution"
+depmod -b "$ROOTFS" "$KERNEL_VER"
+
+echo ">>> Creating initramfs..."
+(cd "$ROOTFS" && find . | cpio -o -H newc --quiet) > "$BUILD/init.cpio"
+
+echo "init.cpio generated: $BUILD/init.cpio"

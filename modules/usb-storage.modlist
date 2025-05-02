@@ -1,0 +1,3 @@
+kernel/drivers/usb/storage/usb-storage.ko
+kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/scsi/scsi_common.ko
