@@ -1,4 +1,8 @@
-kernel/drivers/usb/core/usbcore.ko
 kernel/drivers/usb/common/usb-common.ko
+kernel/drivers/usb/core/usbcore.ko
 kernel/drivers/usb/host/xhci-hcd.ko
+kernel/drivers/usb/host/xhci-pci.ko
 kernel/drivers/usb/host/ehci-hcd.ko
+kernel/drivers/usb/host/ehci-pci.ko
+kernel/drivers/usb/serial/usbserial.ko
+kernel/fs/nls/nls_base.ko

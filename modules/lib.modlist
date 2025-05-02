@@ -1,3 +1,5 @@
+kernel/lib/kunit/kunit.ko
+kernel/lib/tests/string_helpers_kunit.ko
 kernel/lib/crc-ccitt.ko
 kernel/lib/crc16.ko
 kernel/lib/bitrev.ko

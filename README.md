@@ -195,3 +195,4 @@ route add default gw 10.0.2.2
 - az alaprendszerből is lehessen akár kézzel felépíteni
 - fix poweroff
 - confg mosule compression how to
+- usb modules->kernel/fs/nls/nls_base.ko->utf16s_to_utf8s() thinking
