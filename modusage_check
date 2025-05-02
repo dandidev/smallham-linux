@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -e
+
+KERNEL_MODS=$(mktemp)
+USED_MODS=$(mktemp)
+
+find build/current/kernel/ -type f -name '*.ko' | sed 's|build/current/||' | sort > "$KERNEL_MODS"
+cat modules/*.modlist | grep -v '^#' | sed '/^$/d' | sort | uniq > "$USED_MODS"
+echo ">>> Unused (but compiled) modules:"
+comm -23 "$KERNEL_MODS" "$USED_MODS"
+
+rm "$KERNEL_MODS" "$USED_MODS"
