@@ -32,6 +32,7 @@ for opt in "$@"; do
         cat modules/usb.modlist >> "$MODLIST"
         cat modules/usb-storage.modlist >> "$MODLIST" ;;
     -sound) cat modules/sound.modlist >> "$MODLIST" ;;
+    -net) cat modules/network.modlist >> "$MODLIST" ;;
     *) echo "Unknown option: $opt" && exit 1 ;;
   esac
 done
