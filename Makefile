@@ -71,11 +71,10 @@ $(INIT)/bin/busybox: $(BBOBJ)/busybox
 
 distro: $(KOBJ)/arch/x86/boot/bzImage $(BBOBJ)/busybox
 	@echo ">>> Preparing initroot"
-	rm -rf $(INIT)
 ifeq ($(CONFIG_NET),y)
-	rsync -a modules/network/initroot/ $(INIT)/
+	rsync -a --exclude 'bin/*' modules/network/initroot/ $(INIT)/
 else
-	rsync -a modules/base/initroot/ $(INIT)/
+	rsync -a --exclude 'bin/*' modules/base/initroot/ $(INIT)/
 endif
 	@echo ">>> Running distro builder"
 	./distro-builder $(DISTRO_MODLISTS)
