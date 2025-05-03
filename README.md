@@ -113,6 +113,10 @@ qemu-system-x86_64 -m 40 \
   -cdrom build/current/my-linux.iso \
   -boot d
 ```
+- Create HDD
+```
+qemu-img create -f raw hdd.img 10M
+```
 - Run linux from ISO with hdd
 ```
 qemu-system-x86_64 -m 40 \
