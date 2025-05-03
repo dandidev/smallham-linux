@@ -7,7 +7,7 @@ This project aims to create a minimal Linux system primarily for learning purpos
 - Build a custom init system and boot process
 - Integrate core utilities using BusyBox
 - Configure the distribution using Kconfig and Makefiles
-- Produce a bootable ISO image for QEMU/VirtualBox
+- Produce a bootable ISO image for QEMU/VirtualBox (VirtualBox is not recommended)
 - **Support a modular architecture for future package management and automation**  
 - **Enable amateur radio control testing on minimal hardware**
 
