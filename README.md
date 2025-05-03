@@ -15,21 +15,59 @@ This project includes amateur radio kernel modules (e.g., AX.25, MKISS, 6PACK, N
 
 The project is under active development, with new modules, configuration options, and tools being added regularly.
 
-# Getting started
-## Prerequisites 
-### packages
+## Configuration Options (menuconfig)
+
+To customize the system, use the make menuconfig command. This lets you choose which features and modules are included in the initramfs and the final bootable system.
+
+Each option corresponds to a .modlist file, defining which kernel modules will be copied into initroot/lib/modules/.
+Available module options:
+
+#### `HAM` – Hamradio drivers
+
+- Enables support for AX.25, NetROM, ROSE, 6PACK, and other hamradio protocols.
+- Use case: Amateur radio communication, tower emulation setups.
+
+#### `FS` – Filesystem support
+- Enables ext4, jbd2, mbcache, nls_base, and block device drivers like virtio_blk.
+- Use case: Mounting storage, filesystem access.
+
+#### `OVERLAY_FS` – Overlay filesystem support
+- Enables overlayfs module for layered file access.
+- Depends on: FS must be enabled.
+- Use case: Writable layers over read-only rootfs, common in initramfs-based systems.
+
+#### `NET` – Network drivers (VirtIO) support
+- Enables virtio_net, net_failover, and related networking support.
+- Use case: Provides eth0 or similar virtual NICs, usable in QEMU with -netdev.
+
+#### `USB` – USB support (VirtIO)
+- Enables USB core, EHCI/XHCI host controllers, and common USB infrastructure.
+- Use case: Connect USB peripherals like serial adapters, USB sound cards, etc.
+
+#### `USB_STORAGE` – USB mass storage (VirtIO) support
+- Enables usb-storage, sd_mod, scsi_mod, and other storage-related modules.
+- Depends on: USB must be enabled.
+- Use case: Attach and access USB drives, flash disks.
+
+#### `SOUND` – Sound driver support
+- Loads sound modules like snd-core, snd-usb-audio, snd-pcm, etc.
+- Use case: USB sound card output, digital modulation testing for hamradio.
+
+## Getting started
+### Prerequisites 
+#### packages
 ```shell
 sudo pacman -S syslinux
 sudo pacman -S genisoiamge
 sudo pacman -S kconfig-frontends
 ```
 
-# Clone this project
+#### Clone this project
 ```shell
 https://github.com/dandidev/small-linux.git
 ```
 
-# Clone dependencies to source folder
+#### Clone dependencies to source folder
 - Linux kernel
 ```shell
 git clone --depth 1 --branch master https://github.com/torvalds/linux.git
@@ -43,7 +81,7 @@ git clone https://git.busybox.net/busybox
 git clone https://github.com/kisslinux/kiss.git
 ```
 
-# Build mini linux
+### Build mini linux
 - Select modules
 ```shell
 make menuconfig
@@ -61,7 +99,7 @@ make distro
 make iso
 ```
 
-# Qemu
+### Qemu
 - Run linux
 ```
 qemu-system-x86_64 -m 40 
@@ -109,8 +147,8 @@ qemu-system-x86_64 -m 40 \
   -boot d
 ```
 
-# Install ham tools
-## download
+## Install ham tools
+### download
 https://linux-ax25.in-berlin.de/pub/
 
 ## ax25-lib
