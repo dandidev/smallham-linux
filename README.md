@@ -8,12 +8,13 @@ This project aims to create a minimal Linux system primarily for learning purpos
 - Integrate core utilities using BusyBox
 - Configure the distribution using Kconfig and Makefiles
 - Produce a bootable ISO image for QEMU/VirtualBox
+- **Support a modular architecture for future package management and automation**  
+- **Enable amateur radio control testing on minimal hardware**
 
 ## Amateur Radio Support
 
-This project includes amateur radio kernel modules (e.g., AX.25, MKISS, 6PACK, NET/ROM, ROSE), offering functionality tailored for the amateur radio community. A key objective was to enable running the system on minimal hardware, suitable for simulating repeater stations or radio tower emulation on general-purpose computers.
+This project includes amateur radio kernel modules (e.g., AX.25, MKISS, 6PACK, NET/ROM, ROSE), offering functionality tailored for the amateur radio community. One of the key objectives was to enable running the system on minimal hardware, making it suitable for simulating repeater stations or radio tower emulation on general-purpose computers.
 
-The project is under active development, with new modules, configuration options, and tools being added regularly.
 
 ## Configuration Options (menuconfig)
 
@@ -52,6 +53,9 @@ Available module options:
 #### `SOUND` – Sound driver support
 - Loads sound modules like snd-core, snd-usb-audio, snd-pcm, etc.
 - Use case: USB sound card output, digital modulation testing for hamradio.
+
+
+The project is under active development, with new modules, configuration options, and tools being added regularly.
 
 ## Getting started
 ### Prerequisites 
