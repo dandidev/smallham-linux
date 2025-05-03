@@ -1,25 +1,46 @@
-# Required packages
+# Minimal Linux – Educational System-Building Project
+
+This project aims to create a minimal Linux system primarily for learning purposes. The goal is to gain a deep understanding of how a Linux-based system is constructed from the ground up, and how to assemble a working distribution using a modular approach with the Linux kernel, BusyBox, and optional components.
+## Key Objectives:
+- Practice compiling and configuring the Linux kernel
+- Understand initramfs and kernel module handling
+- Build a custom init system and boot process
+- Integrate core utilities using BusyBox
+- Configure the distribution using Kconfig and Makefiles
+- Produce a bootable ISO image for QEMU/VirtualBox
+
+## Amateur Radio Support
+
+This project includes amateur radio kernel modules (e.g., AX.25, MKISS, 6PACK, NET/ROM, ROSE), offering functionality tailored for the amateur radio community. A key objective was to enable running the system on minimal hardware, suitable for simulating repeater stations or radio tower emulation on general-purpose computers.
+
+The project is under active development, with new modules, configuration options, and tools being added regularly.
+
+# Getting started
+## Prerequisites 
+### packages
 ```shell
 sudo pacman -S syslinux
 sudo pacman -S genisoiamge
 sudo pacman -S kconfig-frontends
 ```
 
-# Init folders
+# Clone this project
 ```shell
-mkdir sources
+https://github.com/dandidev/small-linux.git
 ```
 
-# Clone Linux kernel
+# Clone dependencies to source folder
+- Linux kernel
 ```shell
-cd sources
 git clone --depth 1 --branch master https://github.com/torvalds/linux.git
 ```
-
-# Clone BusyBox
+- Busybox
 ```shell
-cd sources
 git clone https://git.busybox.net/busybox
+```
+- Kiss package manager
+```shell
+git clone https://github.com/kisslinux/kiss.git
 ```
 
 # Build mini linux
