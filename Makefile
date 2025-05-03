@@ -1,3 +1,33 @@
+include .config
+
+KCONF_BIN := sources/linux/scripts/kconfig/mconf
+KCONF_SRC := sources/linux/scripts/kconfig
+KCONFIG_FILE := Kconfig
+
+DISTRO_MODLISTS := 
+
+ifeq ($(CONFIG_HAM),y)
+  DISTRO_MODLISTS += modules/ham/ham.modlist
+endif
+ifeq ($(CONFIG_USB),y)
+	DISTRO_MODLISTS += modules/usb/usb.modlist
+endif
+ifeq ($(CONFIG_USB_STORAGE),y)
+	DISTRO_MODLISTS += modules/usb-storage/usb-storage.modlist
+endif
+ifeq ($(CONFIG_FS),y)
+  DISTRO_MODLISTS += modules/fs.modlist
+endif
+ifeq ($(CONFIG_OVERLAY_FS),y)
+  DISTRO_MODLISTS += modules/overlay-fs.modlist
+endif
+ifeq ($(CONFIG_NET),y)
+  DISTRO_MODLISTS += modules/network.modlist
+endif
+ifeq ($(CONFIG_SOUND),y)
+  DISTRO_MODLISTS += modules/sound.modlist
+endif
+
 BUILD := $(shell readlink -f build/current)
 KOBJ  := $(BUILD)/kernel
 BBOBJ := $(BUILD)/busybox
@@ -8,7 +38,10 @@ ISOIMG := $(BUILD)/my-linux.iso
 
 .PHONY: all run clean busybox distclean iso
 
-all: kernel busybox $(CPIO)
+all: kernel busybox
+
+menuconfig:
+	kconfig-mconf Kconfig
 
 
 kernel: $(KOBJ)/arch/x86/boot/bzImage
@@ -36,16 +69,23 @@ $(INIT)/bin/busybox: $(BBOBJ)/busybox
 		ln -sf busybox $$cmd; \
 	done
 
-# Initramfs --------------------
-$(CPIO): $(INIT)/bin/busybox $(shell find $(INIT) -type f)
-	(cd $(INIT) && find . | cpio -o -H newc --quiet) > $@
+distro: $(KOBJ)/arch/x86/boot/bzImage $(BBOBJ)/busybox
+	@echo ">>> Preparing initroot"
+	rm -rf $(INIT)
+ifeq ($(CONFIG_NET),y)
+	rsync -a modules/network/initroot/ $(INIT)/
+else
+	rsync -a modules/base/initroot/ $(INIT)/
+endif
+	@echo ">>> Running distro builder"
+	./distro-builder $(DISTRO_MODLISTS)
 
-run: all
+run: distro
 	qemu-system-x86_64 -m 40 \
 	    -kernel $(KOBJ)/arch/x86/boot/bzImage \
 	    -initrd $(CPIO) -append "notsc"
 
-iso:
+iso: distro
 	cp $(KOBJ)/arch/x86/boot/bzImage $(ISO)
 	cp $(CPIO) $(ISO)/init.cpio
 	cp /usr/lib/syslinux/bios/isolinux.bin $(ISO)/isolinux/

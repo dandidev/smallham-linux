@@ -1,0 +1,26 @@
+menu "Module selection"
+
+config HAM
+    bool "Hamradio drivers"
+
+config FS
+    bool "Filesystem support"
+
+config OVERLAY_FS
+    bool "OverlayFS support"
+    depends on FS
+
+config NET
+    bool "Network drivers (VirtIO) support"
+
+config USB
+    bool "USB support (VirtIO)"
+
+config USB_STORAGE
+    bool "USB mass storage (VirtIO) support"
+    depends on USB
+
+config SOUND
+    bool "Sound drivers support"
+
+endmenu

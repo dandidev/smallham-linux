@@ -9,3 +9,4 @@ kernel/net/packet/af_packet.ko
 kernel/drivers/virtio/virtio_pci.ko
 kernel/drivers/virtio/virtio.ko
 kernel/drivers/virtio/virtio_ring.ko
+kernel/drivers/virtio/virtio_pci_modern_dev.ko

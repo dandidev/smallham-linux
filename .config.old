@@ -1,0 +1,14 @@
+#
+# Automatically generated file; DO NOT EDIT.
+# Configuration
+#
+
+#
+# Module selection
+#
+# CONFIG_HAM is not set
+CONFIG_FS=y
+CONFIG_OVERLAYFS=y
+# CONFIG_NET is not set
+# CONFIG_USB is not set
+# CONFIG_SOUND is not set

@@ -15,7 +15,7 @@ echo "Recreate current symlink..."
 ln -sfn current build/current
 
 echo "Copy initroot fs..."
-rsync -a modules/base/initroot/  "$INIT/"
+rsync -a modules/network/initroot/  "$INIT/"
 
 echo "Copy iso fs..."
 rsync -a iso/  "$ISO/"

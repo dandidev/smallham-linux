@@ -7,4 +7,3 @@
 ::respawn:/bin/getty -n -l /bin/sh 115200 tty1
 ::ctrlaltdel:/bin/reboot -f
 ::shutdown:/bin/umount -a -r
-::shutdown:/sbin/reboot -f
