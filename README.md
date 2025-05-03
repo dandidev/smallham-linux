@@ -22,11 +22,22 @@ cd sources
 git clone https://git.busybox.net/busybox
 ```
 
-# Build
+# Build mini linux
+- Select modules
+```shell
+make menuconfig
+```
+- Build kernel with modules
 ```shell
 make -j$(nproc) all
+```
+- Create distro
+```shell
 make distro
-#make iso
+```
+- Create ISO
+```shell
+make iso
 ```
 
 # Qemu
@@ -162,13 +173,11 @@ udhcpc -i eth0
 ifconfig eth0 10.0.2.15 netmask 255.255.255.0 up
 route add default gw 10.0.2.2
 ```
-
 # TODO's
 - busybox build only used package -ok, but not enought
 - bootchart optimalization
 - makefile add required tools
 - init.cpio rename to initramfs.cpio
-- create module to overlayfs support
 - create module to kiss package manager (kiss pm, certs, wget ssl)
 - fix poweroff
 - config module compression how to
