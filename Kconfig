@@ -1,7 +1,9 @@
+mainmenu "SmallHam Configuration"
+
 menu "Module selection"
 
 config HAM
-    bool "Hamradio drivers"
+    bool "HAM Radio drivers"
 
 config FS
     bool "Filesystem support"
@@ -22,5 +24,22 @@ config USB_STORAGE
 
 config SOUND
     bool "Sound drivers support"
+
+endmenu
+
+
+menu "AX.25 Support"
+
+config LIB_AX25
+    bool "AX.25 Library"
+    depends on HAM
+
+config AX25_TOOLS
+    bool "AX.25 Tools (e.g. axctl, kissattach)"
+    depends on LIB_AX25
+
+config AX25_APPS
+    bool "AX.25 Applications (e.g. listen, beacon)"
+    depends on AX25_TOOLS
 
 endmenu
