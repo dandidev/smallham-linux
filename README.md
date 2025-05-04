@@ -161,10 +161,10 @@ https://linux-ax25.in-berlin.de/pub/
 
 ## ax25-lib
 ```shell
-#autoreconf -fi
+autoreconf -fi
 CFLAGS="-Os" LDFLAGS="-s" ./configure --prefix=/usr --enable-static
 make -j$(nproc)
-make DESTDIR=../../initroot/ install
+make DESTDIR=$PWD/../../build/current/initroot/ install
 ```
 
 ## ax25-tools (TODO: push new code)

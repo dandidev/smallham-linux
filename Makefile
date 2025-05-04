@@ -1,19 +1,20 @@
 include .config
+include ax25.mk
 
 KCONF_BIN := sources/linux/scripts/kconfig/mconf
 KCONF_SRC := sources/linux/scripts/kconfig
 KCONFIG_FILE := Kconfig
 
-DISTRO_MODLISTS := 
+DISTRO_MODLISTS := modules/lib.modlist
 
 ifeq ($(CONFIG_HAM),y)
-  DISTRO_MODLISTS += modules/ham/ham.modlist
+  DISTRO_MODLISTS += modules/ham.modlist
 endif
 ifeq ($(CONFIG_USB),y)
-	DISTRO_MODLISTS += modules/usb/usb.modlist
+	DISTRO_MODLISTS += modules/usb.modlist
 endif
 ifeq ($(CONFIG_USB_STORAGE),y)
-	DISTRO_MODLISTS += modules/usb-storage/usb-storage.modlist
+	DISTRO_MODLISTS += modules/usb-storage.modlist
 endif
 ifeq ($(CONFIG_FS),y)
   DISTRO_MODLISTS += modules/fs.modlist
@@ -69,13 +70,13 @@ $(INIT)/bin/busybox: $(BBOBJ)/busybox
 		ln -sf busybox $$cmd; \
 	done
 
-distro: $(KOBJ)/arch/x86/boot/bzImage $(BBOBJ)/busybox
+distro: $(KOBJ)/arch/x86/boot/bzImage $(BBOBJ)/busybox ax25-lib ax25-tools ax25-apps
 	@echo ">>> Preparing initroot"
 	@echo "		+ Append base initroot"
-	rsync modules/base/initroot/ $(INIT)/
+	rsync -r modules/base/initroot/ $(INIT)/
 ifeq ($(CONFIG_NET),y)
 	@echo "		+ Append network initroot"
-	rsync modules/network/initroot/ $(INIT)/
+	rsync -r modules/network/initroot/ $(INIT)/
 else
 	
 endif
