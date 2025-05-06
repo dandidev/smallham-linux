@@ -19,7 +19,7 @@ CONFIG_AX25_TOOLS_NETROMD:=y
 CONFIG_AX25_TOOLS_KISS:=y
 CONFIG_AX25_APPS_MONITOR:=y
 
-.PHONY: ax25-lib ax25-tools ax25-apps clean
+.PHONY: ax25-lib ax25-tools ax25-apps ax25-clean
 
 ax25-lib:
 ifeq ($(CONFIG_LIB_AX25),y)
@@ -106,7 +106,7 @@ endif
 #	cd $(APPS_DIR) && make DESTDIR=$(INITROOT) install
 endif
 
-clean:
+ax25-clean:
 	@echo ">>> Cleaning AX.25 build artifacts"
 	@if [ -d "$(LIB_DIR)" ]; then \
 		$(MAKE) -C $(LIB_DIR) clean || true; \

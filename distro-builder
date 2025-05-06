@@ -6,8 +6,8 @@ ROOTFS="$BUILD/initroot"
 KOBJ="$BUILD/kernel"
 
 # Kernel verzió lekérése
-#KERNEL_VER=$(make -s -C sources/linux O="$KOBJ" kernelrelease)
-KERNEL_VER=6.15.0-rc3
+#KERNEL_VER=$(make -s -C sources/linux-6.6.30 O="$KOBJ" kernelrelease)
+KERNEL_VER=6.6.30
 MODSRC="$BUILD"
 MODDST="$ROOTFS/lib/modules/$KERNEL_VER"
 

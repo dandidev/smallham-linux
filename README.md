@@ -154,7 +154,15 @@ qemu-system-x86_64 -m 40 \
   -drive file=hdd.img,if=virtio,format=raw \
   -boot d
 ```
-
+### Direwolf
+- Configuration
+```shell
+echo "ADEVICE plughw:0,0" > /etc/direwolf.conf
+```
+- Run
+```shell
+direwolf -f 0 -c /etc/direwolf.conf
+```
 ## Install ham tools
 ### download
 https://linux-ax25.in-berlin.de/pub/

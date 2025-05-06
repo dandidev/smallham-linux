@@ -47,14 +47,16 @@ menuconfig:
 
 kernel: $(KOBJ)/arch/x86/boot/bzImage
 $(KOBJ)/.config: modules/base/kernel.config
+	mkdir -p $(dir $@)
 	cp $< $@
 $(KOBJ)/arch/x86/boot/bzImage: $(KOBJ)/.config
-	$(MAKE) -C sources/linux mrproper
-	$(MAKE) -C sources/linux O=$(KOBJ) KERNELRELEASE=6.15.0-rc3 olddefconfig
-	$(MAKE) -C sources/linux O=$(KOBJ) KERNELRELEASE=6.15.0-rc3 bzImage modules
+	$(MAKE) -C sources/linux-6.6.30 mrproper
+	$(MAKE) -C sources/linux-6.6.30 O=$(KOBJ) olddefconfig
+	$(MAKE) -C sources/linux-6.6.30 O=$(KOBJ) bzImage modules
 
 busybox: $(INIT)/bin/busybox
 $(BBOBJ)/.config: modules/base/busybox.config
+	mkdir -p $(dir $@)
 	cp $< $@
 
 $(BBOBJ)/busybox: $(BBOBJ)/.config $(KOBJ)/arch/x86/boot/bzImage
@@ -62,6 +64,7 @@ $(BBOBJ)/busybox: $(BBOBJ)/.config $(KOBJ)/arch/x86/boot/bzImage
 	$(MAKE) -C sources/busybox O=$(BBOBJ)
 
 $(INIT)/bin/busybox: $(BBOBJ)/busybox
+	mkdir -p $(INIT)/bin
 	cp $(BBOBJ)/busybox $(INIT)/bin/busybox
 	chmod +x $(INIT)/bin/busybox
 	cd $(INIT)/bin && \

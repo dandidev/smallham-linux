@@ -8,6 +8,8 @@ ALSA_SRC := $(SOURCE_DIR)/alsa-lib-$(ALSA_VERSION)
 ALSA_PREFIX := $(abspath toolchain/alsa-lib)
 ALSA_LIB := $(ALSA_PREFIX)/usr/lib/libasound.o
 
+INITROOT := $(abspath build/current/initroot)
+
 .PHONY: alsa-download alsa-install
 
 alsa-download:
@@ -43,6 +45,9 @@ alsa-install: alsa-download musl-install
 
 	cd $(ALSA_SRC) && make -j$$(nproc)
 	cd $(ALSA_SRC) && make install DESTDIR=$(ALSA_PREFIX)
+	
+	cd $(ALSA_PREFIX) && cp usr/share $(INITROOT)/usr
+
 
 $(ALSA_LIB): alsa-install
 
