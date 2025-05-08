@@ -17,3 +17,5 @@ ldlinux.c32
 mylinux.iso
 
 *.img
+*.tar.*
+.vscode

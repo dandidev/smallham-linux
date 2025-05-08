@@ -38,8 +38,24 @@ config AX25_TOOLS
     bool "AX.25 Tools (e.g. axctl, kissattach)"
     depends on LIB_AX25
 
+    config AX25_TOOLS_NETROMD
+        bool "Netorm (netromd)"
+        depends on AX25_TOOLS
+
+    config AX25_TOOLS_KISS
+        bool "Kiss (kissattach kissparms)"
+        depends on AX25_TOOLS
+
 config AX25_APPS
     bool "AX.25 Applications (e.g. listen, beacon)"
     depends on AX25_TOOLS
+
+    config AX25_APPS_CALL
+        bool "Call (call)"
+        depends on AX25_APPS
+
+    config AX25_APPS_MONITOR
+        bool "Monitor (ax25mond)"
+        depends on AX25_APPS
 
 endmenu
