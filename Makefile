@@ -15,29 +15,20 @@ KCONF_BIN := sources/linux/scripts/kconfig/mconf
 KCONF_SRC := sources/linux/scripts/kconfig
 KCONFIG_FILE := Kconfig
 
-DISTRO_MODLISTS := modules/lib.modlist
+MODMAP := \
+  HAM modules/ham.modlist \
+  USB modules/usb.modlist \
+  USB_STORAGE modules/usb-storage.modlist \
+  FS modules/fs.modlist \
+  OVERLAY_FS modules/overlay-fs.modlist \
+  NET modules/network.modlist \
+  SOUND modules/sound.modlist
 
-ifeq ($(CONFIG_HAM),y)
-  DISTRO_MODLISTS += modules/ham.modlist
-endif
-ifeq ($(CONFIG_USB),y)
-	DISTRO_MODLISTS += modules/usb.modlist
-endif
-ifeq ($(CONFIG_USB_STORAGE),y)
-	DISTRO_MODLISTS += modules/usb-storage.modlist
-endif
-ifeq ($(CONFIG_FS),y)
-  DISTRO_MODLISTS += modules/fs.modlist
-endif
-ifeq ($(CONFIG_OVERLAY_FS),y)
-  DISTRO_MODLISTS += modules/overlay-fs.modlist
-endif
-ifeq ($(CONFIG_NET),y)
-  DISTRO_MODLISTS += modules/network.modlist
-endif
-ifeq ($(CONFIG_SOUND),y)
-  DISTRO_MODLISTS += modules/sound.modlist
-endif
+$(foreach m,$(MODMAP),\
+  $(if $(filter y,$(CONFIG_$(word 1,$(m)))),\
+    $(eval DISTRO_MODLISTS += $(word 2,$(m)))\
+  )\
+)
 
 AX25_MODULES :=
 
@@ -192,7 +183,7 @@ endif
 	@echo ">>> Building distro"
 	@echo ">>> Copying from module lists:"
 	mkdir -p $(MODDST)
-	@for list in $(DISTRO_MODLISTS); do \
+	@for list in $(MODMAP); do \
 		echo "  -> $$list"; \
 		while read -r mod; do \
 			[ -z "$$mod" ] && continue; \
