@@ -1,6 +1,7 @@
 include .config
 
 BUILD := $(shell readlink -f build)
+TOOLCHAIN := $(abspath toolchain)
 KOBJ  := $(BUILD)/kernel
 BBOBJ := $(BUILD)/busybox
 INITROOT := $(BUILD)/initroot
@@ -48,13 +49,6 @@ ifeq ($(CONFIG_AX25_APPS),y)
     AX25_MODULES += ax25-apps
 endif
 
-# Telepítési helyek
-AX25_LIB_INSTALL_DIR := $(abspath toolchain/lib-ax25)
-AX25_TOOLS_INSTALL_DIR := $(INITROOT)/usr/bin
-AX25_APPS_INSTALL_DIR := $(INITROOT)/usr/bin
-AX25_BUILD_DIR := $(BUILD)/ax25
-
-# Binárisok listája a konfiguráció alapján
 AX25_TOOLS_BINARIES := 
 AX25_APPS_BINARIES := 
 
@@ -86,16 +80,19 @@ BUSYBOX_TARBALL := busybox-$(BUSYBOX_VERSION).tar.bz2
 BUSYBOX_URL := https://busybox.net/downloads/$(BUSYBOX_TARBALL)
 BUSYBOX_SRC := sources/busybox-$(BUSYBOX_VERSION)
 
-LIB_REPO := https://github.com/dandidev/libax25
-TOOLS_REPO := https://github.com/dandidev/ax25-tools
-APPS_REPO := https://github.com/dandidev/ax25-apps
-LIB_DIR := $(SOURCES)/ax25-lib
-TOOLS_DIR := $(SOURCES)/ax25-tools
-APPS_DIR := $(SOURCES)/ax25-apps
-LIB_AX25_PREFIX := $(abspath toolchain/lib-ax25)
+LIB_AX25_REPO := https://github.com/dandidev/libax25
+LIB_AX25_SRC := $(SOURCES)/ax25-lib
+LIB_AX25_PREFIX := $(TOOLCHAIN)/lib-ax25
 
+AX25_TOOLS_REPO := https://github.com/dandidev/ax25-tools
+AX25_TOOLS_SRC := $(SOURCES)/ax25-tools
+AX25_TOOLS_PREFIX := $(INITROOT)/usr/bin
 
-NCURSES_PREFIX := $(abspath toolchain/ncurses)
+AX25_APPS_REPO := https://github.com/dandidev/ax25-apps
+AX25_APPS_SRC := $(SOURCES)/ax25-apps
+AX25_APPS_PREFIX := $(INITROOT)/usr/bin
+
+NCURSES_PREFIX := $(TOOLCHAIN)/ncurses
 NCURSES_VERSION := 6.4
 NCURSES_TARBALL := ncurses-$(NCURSES_VERSION).tar.gz
 NCURSES_URL := https://ftp.gnu.org/pub/gnu/ncurses/$(NCURSES_TARBALL)
@@ -112,56 +109,46 @@ all: kernel busybox
 menuconfig:
 	kconfig-mconf Kconfig
 
-# Kernel ------------------------------------------------------------
-# --- Fő cél: kernel
+
 kernel: $(KOBJ)/arch/x86/boot/bzImage
 
-# --- Letöltés (tarball mint cél)
 $(LINUX_TARBALL):
 	@echo ">>> Downloading Linux kernel $(LINUX_VERSION)"
 	@mkdir -p $(SOURCES)
 	curl -L $(LINUX_URL) -o $@
 
-# --- Kicsomagolás (a forrásfájl függ a tarballtól)
 $(LINUX_SRC): $(LINUX_TARBALL)
 	@echo ">>> Extracting Linux kernel..."
 	tar -xf $< -C $(SOURCES)
 
-# --- Konfiguráció bemásolása
 $(KOBJ)/.config: $(LINUX_SRC) modules/base/kernel.config
 	@echo ">>> Preparing Linux kernel configuration"
 	mkdir -p $(KOBJ)
 	cp modules/base/kernel.config $@
 
-# --- Fordítás (figyeljük, hogy itt is legyen függőség a buildre)
 $(KOBJ)/arch/x86/boot/bzImage: $(KOBJ)/.config
 	@echo ">>> Building Linux kernel $(LINUX_VERSION)"
 	$(MAKE) -C $(LINUX_SRC) mrproper
 	$(MAKE) -C $(LINUX_SRC) O=$(KOBJ) olddefconfig
 	$(MAKE) -C $(LINUX_SRC) O=$(KOBJ) bzImage modules
 
-# BusyBox -----------------------------------------------------------
-# --- Fő cél: busybox
+
 busybox: $(INITROOT)/bin/busybox
 
-# --- Letöltés (tarball mint cél)
 $(BUSYBOX_TARBALL):
 	@echo ">>> Downloading BusyBox $(BUSYBOX_VERSION)"
 	@mkdir -p sources
 	curl -L $(BUSYBOX_URL) -o $@
 
-# --- Kicsomagolás (a forrásfájl függ a tarballtól)
 $(BUSYBOX_SRC): $(BUSYBOX_TARBALL)
 	@echo ">>> Extracting BusyBox..."
 	tar -xf $< -C sources
 
-# --- Konfiguráció bemásolása
 $(BBOBJ)/.config: $(BUSYBOX_SRC) modules/base/busybox.config
 	@echo ">>> Preparing BusyBox configuration"
 	mkdir -p $(BBOBJ)
 	cp modules/base/busybox.config $@
 
-# --- Fordítás
 $(BBOBJ)/busybox: $(BBOBJ)/.config
 	@echo ">>> Building BusyBox"
 	$(MAKE) -C $(BUSYBOX_SRC) O=$(BBOBJ) oldconfig
@@ -174,7 +161,7 @@ $(INITROOT)/bin/busybox: $(BBOBJ)/busybox
 	chmod +x $(INITROOT)/bin/busybox
 
 
-distro: kernel busybox create-initfs-modules create-initfs-symlinks $(INITROOT)/init.cpio
+distro: kernel busybox $(INITROOT)/init.cpio
 
 clean-distro: rm -rf build/initroot
 
@@ -240,8 +227,8 @@ ax25: $(AX25_MODULES)
 
 ax25-lib:
 	@echo ">>> Downloading AX25 Lib"
-	@if [ ! -d "$(LIB_DIR)" ]; then \
-		git clone $(LIB_REPO) $(LIB_DIR); \
+	@if [ ! -d "$(LIB_AX25_SRC)" ]; then \
+		git clone $(LIB_AX25_REPO) $(LIB_AX25_SRC); \
 	else \
 		echo "libax25 already cloned."; \
 	fi
@@ -252,15 +239,15 @@ ax25-lib:
 		./configure --prefix=/usr --enable-static
 	$(MAKE) -C $(SOURCES)/ax25-lib
 	@echo ">>> Installing AX25 Lib to toolchain"
-	$(MAKE) -C $(SOURCES)/ax25-lib DESTDIR=$(AX25_LIB_INSTALL_DIR) install
+	$(MAKE) -C $(SOURCES)/ax25-lib DESTDIR=$(LIB_AX25_PREFIX) install
 
 
 .PHONY: ax25-tools
 
 ax25-tools: ax25-lib
 	@echo ">>> Downloading AX25 Tools"
-	@if [ ! -d "$(TOOLS_DIR)" ]; then \
-		git clone $(TOOLS_REPO) $(TOOLS_DIR); \
+	@if [ ! -d "$(AX25_TOOLS_SRC)" ]; then \
+		git clone $(AX25_TOOLS_REPO) $(AX25_TOOLS_SRC); \
 	else \
 		echo "ax25-tools already cloned."; \
 	fi
@@ -269,21 +256,21 @@ ax25-tools: ax25-lib
 		libtoolize --force --copy && aclocal && autoheader && automake --add-missing && autoconf
 	@echo ">>> Building AX25 Tools"
 	cd $(SOURCES)/ax25-tools && \
-		CPPFLAGS="-I$(AX25_LIB_INSTALL_DIR)/usr/include" \
-		LDFLAGS="-L$(AX25_LIB_INSTALL_DIR)/usr/lib" \
+		CPPFLAGS="-I$(LIB_AX25_PREFIX)/usr/include" \
+		LDFLAGS="-L$(LIB_AX25_PREFIX)/usr/lib" \
 		CFLAGS="-Os" LDFLAGS="-s" \
 		./configure --prefix=/usr --enable-static
 	$(MAKE) -C $(SOURCES)/ax25-tools
 
 	@echo ">>> Installing AX25 Tools to initroot"
-	@mkdir -p $(AX25_TOOLS_INSTALL_DIR)
+	@mkdir -p $(AX25_TOOLS_PREFIX)
 
 	@for bin in $(AX25_TOOLS_BINARIES); do \
 		echo ">>> Searching for $$bin..."; \
 		found=$$(find $(SOURCES)/ax25-tools -type f -name $$bin); \
 		if [ -n "$$found" ]; then \
 			echo ">>> Found: $$found -> Installing..."; \
-			cp $$found $(AX25_TOOLS_INSTALL_DIR)/; \
+			cp $$found $(AX25_TOOLS_PREFIX)/; \
 		else \
 			echo ">>> Warning: $$bin not found!"; \
 			exit 1; \
@@ -294,8 +281,8 @@ ax25-tools: ax25-lib
 
 ax25-apps: ax25-lib ax25-tools ncurses-install
 	@echo ">>> Downloading AX25 Apps"
-	@if [ ! -d "$(APPS_DIR)" ]; then \
-		git clone $(APPS_REPO) $(APPS_DIR); \
+	@if [ ! -d "$(AX25_APPS_SRC)" ]; then \
+		git clone $(AX25_APPS_REPO) $(AX25_APPS_SRC); \
 	else \
 		echo "ax25-apps already cloned."; \
 	fi
@@ -303,21 +290,21 @@ ax25-apps: ax25-lib ax25-tools ncurses-install
 	cd $(SOURCES)/ax25-apps && autoreconf --install --force
 	@echo ">>> Building AX25 Apps"
 	cd $(SOURCES)/ax25-apps && \
-		CPPFLAGS="-I$(AX25_LIB_INSTALL_DIR)/usr/include" \
-		LDFLAGS="-L$(AX25_LIB_INSTALL_DIR)/usr/lib" \
+		CPPFLAGS="-I$(LIB_AX25_PREFIX)/usr/include" \
+		LDFLAGS="-L$(LIB_AX25_PREFIX)/usr/lib" \
 		CFLAGS="-Os" LDFLAGS="-s" \
 		./configure --prefix=/usr --enable-static
 	$(MAKE) -C $(SOURCES)/ax25-apps
 
 	@echo ">>> Installing AX25 Apps to initroot"
-	@mkdir -p $(AX25_APPS_INSTALL_DIR)
+	@mkdir -p $(AX25_APPS_PREFIX)
 
 	@for bin in $(AX25_APPS_BINARIES); do \
 		echo ">>> Searching for $$bin..."; \
 		found=$$(find $(SOURCES)/ax25-apps -type f -name $$bin); \
 		if [ -n "$$found" ]; then \
 			echo ">>> Found: $$found -> Installing..."; \
-			cp $$found $(AX25_APPS_INSTALL_DIR)/; \
+			cp $$found $(AX25_APPS_PREFIX)/; \
 		else \
 			echo ">>> Warning: $$bin not found!"; \
 			exit 1; \
@@ -327,12 +314,13 @@ ax25-apps: ax25-lib ax25-tools ncurses-install
 ncurses-install: $(NCURSES_LIB)
 
 $(NCURSES_LIB):
-	@echo ">>> Building and installing system-wide static ncursesw"
+	@echo ">>> Downloading ncurses $(NCURSES_VERSION)"
 	@if [ ! -d "$(NCURSES_SRC)" ]; then \
 		mkdir -p $(SOURCE_DIR); \
 		curl -L $(NCURSES_URL) | tar xz -C $(SOURCE_DIR); \
 	fi
 
+	@echo ">>> Building ncurses"
 	cd $(NCURSES_SRC) && make distclean || true
 	cd $(NCURSES_SRC) && ./configure \
 		--prefix=/usr \
@@ -343,7 +331,7 @@ $(NCURSES_LIB):
 		--without-debug
 
 	cd $(NCURSES_SRC) && make -j$$(nproc)
-	cd $(NCURSES_SRC) && make install.libs install.includes DESTDIR=$(abspath toolchain/ncurses)
+	cd $(NCURSES_SRC) && make install.libs install.includes DESTDIR=$(NCURSES_PREFIX)
 
 
 run: distro
