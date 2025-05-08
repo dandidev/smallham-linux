@@ -1,6 +1,8 @@
 include .config
+include direwolf_deps.mk
 
 BUILD := $(shell readlink -f build)
+SRC := $(abspath sources)
 TOOLCHAIN := $(abspath toolchain)
 KOBJ  := $(BUILD)/kernel
 BBOBJ := $(BUILD)/busybox
@@ -66,14 +68,11 @@ ifeq ($(CONFIG_AX25_APPS_MONITOR),y)
     AX25_APPS_BINARIES += ax25mond
 endif
 
-SOURCES := sources
-
 LINUX_VERSION := 6.6.30
 LINUX_TARBALL := linux-$(LINUX_VERSION).tar.xz
 LINUX_URL := https://cdn.kernel.org/pub/linux/kernel/v6.x/$(LINUX_TARBALL)
-LINUX_SRC := $(SOURCES)/linux-$(LINUX_VERSION)
+LINUX_SRC := $(SRC)/linux-$(LINUX_VERSION)
 LINUX_HEADERS_DIR := $(abspath toolchain/linux-headers)
-BZIMAGE := $(LINUX_SRC)/arch/x86/boot/bzImage
 
 BUSYBOX_VERSION := 1.37.0
 BUSYBOX_TARBALL := busybox-$(BUSYBOX_VERSION).tar.bz2
@@ -81,16 +80,16 @@ BUSYBOX_URL := https://busybox.net/downloads/$(BUSYBOX_TARBALL)
 BUSYBOX_SRC := sources/busybox-$(BUSYBOX_VERSION)
 
 LIB_AX25_REPO := https://github.com/dandidev/libax25
-LIB_AX25_SRC := $(SOURCES)/ax25-lib
+LIB_AX25_SRC := $(SRC)/ax25-lib
 LIB_AX25_PREFIX := $(TOOLCHAIN)/lib-ax25
 
 AX25_TOOLS_REPO := https://github.com/dandidev/ax25-tools
-AX25_TOOLS_SRC := $(SOURCES)/ax25-tools
+AX25_TOOLS_SRC := $(SRC)/ax25-tools
 AX25_TOOLS_PREFIX := $(BUILD)/ax25-tools
 AX25_TOOLS_INITROOT := $(INITROOT)/usr/bin
 
 AX25_APPS_REPO := https://github.com/dandidev/ax25-apps
-AX25_APPS_SRC := $(SOURCES)/ax25-apps
+AX25_APPS_SRC := $(SRC)/ax25-apps
 AX25_APPS_PREFIX := $(BUILD)/ax25-apps
 AX25_APPS_INITROOT := $(INITROOT)/usr/bin
 
@@ -98,8 +97,15 @@ NCURSES_PREFIX := $(TOOLCHAIN)/ncurses
 NCURSES_VERSION := 6.4
 NCURSES_TARBALL := ncurses-$(NCURSES_VERSION).tar.gz
 NCURSES_URL := https://ftp.gnu.org/pub/gnu/ncurses/$(NCURSES_TARBALL)
-NCURSES_SRC := $(SOURCES)/ncurses-$(NCURSES_VERSION)
+NCURSES_SRC := $(SRC)/ncurses-$(NCURSES_VERSION)
 NCURSES_LIB := $(NCURSES_PREFIX)/usr/lib/libncursesw.a
+
+DIREWOLF_REPO := https://github.com/wb2osz/direwolf.git
+DIREWOLF_DIR := $(SOURCE_DIR)/direwolf
+DIREWOLF_BUILD := $(DIREWOLF_DIR)/build
+DIREWOLF_CMAKE_PATCH := patches/direwolf-cmakelists.patch
+DIREWOLF_SRC_CMAKE_PATCH := patches/direwolf-src-cmakelists.patch
+DIREWOLF_PREFIX := $(TOOLCHAIN)/direwolf
 
 MODSRC := $(BUILD)
 MODDST := "$(INITROOT)/lib/modules/$(LINUX_VERSION)"
@@ -114,37 +120,37 @@ menuconfig:
 
 kernel: $(KOBJ)/arch/x86/boot/bzImage
 
-$(LINUX_TARBALL):
+$(SRC)/$(LINUX_TARBALL):
 	@echo ">>> Downloading Linux kernel $(LINUX_VERSION)"
-	@mkdir -p $(SOURCES)
+	@mkdir -p $(SRC)
 	curl -L $(LINUX_URL) -o $@
 
-$(LINUX_SRC): $(LINUX_TARBALL)
+$(LINUX_SRC): $(SRC)/$(LINUX_TARBALL)
 	@echo ">>> Extracting Linux kernel..."
-	tar -xf $< -C $(SOURCES)
+	tar -xf $< -C $(SRC)
 
-$(KOBJ)/.config: $(LINUX_SRC) modules/base/kernel.config
+$(KOBJ)/.config: $(LINUX_SRC)
 	@echo ">>> Preparing Linux kernel configuration"
 	mkdir -p $(KOBJ)
-	cp modules/base/kernel.config $@
+	cp modules/base/kernel.config $@ 
 
-$(KOBJ)/arch/x86/boot/bzImage: $(KOBJ)/.config
+$(KOBJ)/arch/x86/boot/bzImage: $(KOBJ)/.config $(LINUX_SRC)/Makefile
 	@echo ">>> Building Linux kernel $(LINUX_VERSION)"
-	$(MAKE) -C $(LINUX_SRC) mrproper
+	$(MAKE) -C $(LINUX_SRC)   mrproper
 	$(MAKE) -C $(LINUX_SRC) O=$(KOBJ) olddefconfig
 	$(MAKE) -C $(LINUX_SRC) O=$(KOBJ) bzImage modules
-
+	$(MAKE) -C $(LINUX_SRC) INSTALL_HDR_PATH=$(LINUX_HEADERS_DIR) headers_install
 
 busybox: $(INITROOT)/bin/busybox
 
-$(BUSYBOX_TARBALL):
+$(SRC)/$(BUSYBOX_TARBALL):
 	@echo ">>> Downloading BusyBox $(BUSYBOX_VERSION)"
 	@mkdir -p sources
-	curl -L $(BUSYBOX_URL) -o $@
+	curl -L $(BUSYBOX_URL) -o $(SRC)/$@
 
 $(BUSYBOX_SRC): $(BUSYBOX_TARBALL)
 	@echo ">>> Extracting BusyBox..."
-	tar -xf $< -C sources
+	tar -xf $(SRC)/$< -C $(SRC)
 
 $(BBOBJ)/.config: $(BUSYBOX_SRC) modules/base/busybox.config
 	@echo ">>> Preparing BusyBox configuration"
@@ -177,10 +183,10 @@ create-initfs-symlinks: $(INITROOT)/bin/busybox
 
 create-initfs-modules: kernel busybox 
 	@echo ">>> Preparing initroot"
-	@echo "		+ Append base initroot"
+	@echo "		+ Append base skeleton to initroot"
 	rsync -r modules/base/initroot/ $(INITROOT)/
 ifeq ($(CONFIG_NET),y)
-	@echo "		+ Append network initroot"
+	@echo "		+ Append network skeleton to initroot"
 	rsync -r modules/network/initroot/ $(INITROOT)/
 endif
 	@echo ">>> Building distro"
@@ -204,9 +210,10 @@ endif
 	echo ">>> Running depmod..."
 	depmod -b $(INITROOT) $(LINUX_VERSION)
 
-$(INITROOT)/init.cpio: create-initfs-modules create-initfs-symlinks ax25
+$(INITROOT)/init.cpio: create-initfs-modules create-initfs-symlinks ax25 direwolf
 	echo ">>> Creating initramfs..."
 	cd $(INITROOT) && find . | cpio -o -H newc --quiet > $(BUILD)/init.cpio
+	echo ">>> Initramfs is done: $(BUILD)/init.cpio"
 
 .PHONY: install-ax25
 
@@ -235,13 +242,13 @@ ax25-lib:
 		echo "libax25 already cloned."; \
 	fi
 	@echo ">>> Running autoreconf..."
-	cd $(SOURCES)/ax25-lib && autoreconf -fi
+	cd $(SRC)/ax25-lib && autoreconf -fi
 	@echo ">>> Building AX25 Lib"
-	cd $(SOURCES)/ax25-lib && CFLAGS="-Os" LDFLAGS="-s" \
+	cd $(SRC)/ax25-lib && CFLAGS="-Os" LDFLAGS="-s" \
 		./configure --prefix=/usr --enable-static
-	$(MAKE) -C $(SOURCES)/ax25-lib
+	$(MAKE) -C $(SRC)/ax25-lib
 	@echo ">>> Installing AX25 Lib to toolchain"
-	$(MAKE) -C $(SOURCES)/ax25-lib DESTDIR=$(LIB_AX25_PREFIX) install
+	$(MAKE) -C $(SRC)/ax25-lib DESTDIR=$(LIB_AX25_PREFIX) install
 
 
 .PHONY: ax25-tools ax25-tools-build
@@ -268,16 +275,16 @@ ax25-tools-build: ax25-lib
 		echo "ax25-tools already cloned."; \
 	fi
 	@echo ">>> Running autoreconf..."
-	cd $(SOURCES)/ax25-tools && \
+	cd $(SRC)/ax25-tools && \
 		libtoolize --force --copy && aclocal && autoheader && automake --add-missing && autoconf
 	@echo ">>> Building AX25 Tools"
-	cd $(SOURCES)/ax25-tools && \
+	cd $(SRC)/ax25-tools && \
 		CPPFLAGS="-I$(LIB_AX25_PREFIX)/usr/include" \
 		LDFLAGS="-L$(LIB_AX25_PREFIX)/usr/lib -static" \
 		CFLAGS="-Os" \
 		./configure --prefix=/usr --enable-static
-	$(MAKE) -C $(SOURCES)/ax25-tools
-	$(MAKE) -C $(SOURCES)/ax25-tools DESTDIR=$(AX25_TOOLS_PREFIX) install 
+	$(MAKE) -C $(SRC)/ax25-tools
+	$(MAKE) -C $(SRC)/ax25-tools DESTDIR=$(AX25_TOOLS_PREFIX) install 
 
 	@echo ">>> Installing AX25 Tools"
 	@mkdir -p $(AX25_TOOLS_INITROOT)
@@ -307,16 +314,16 @@ ax25-apps-build: ax25-lib ax25-tools ncurses-install
 		echo "ax25-apps already cloned."; \
 	fi
 	@echo ">>> Running autoreconf..."
-	cd $(SOURCES)/ax25-apps && autoreconf --install --force
+	cd $(SRC)/ax25-apps && autoreconf --install --force
 
 	@echo ">>> Building AX25 Apps"
-	cd $(SOURCES)/ax25-apps && \
+	cd $(SRC)/ax25-apps && \
 		CPPFLAGS="-I$(LIB_AX25_PREFIX)/usr/include" \
 		LDFLAGS="-L$(LIB_AX25_PREFIX)/usr/lib -L$(NCURSES_PREFIX)/usr/lib -static" \
 		CFLAGS="-Os" \
 		./configure --prefix=/usr --enable-static
-	$(MAKE) -C $(SOURCES)/ax25-apps
-	$(MAKE) -C $(SOURCES)/ax25-apps DESTDIR=$(AX25_APPS_PREFIX) install
+	$(MAKE) -C $(SRC)/ax25-apps
+	$(MAKE) -C $(SRC)/ax25-apps DESTDIR=$(AX25_APPS_PREFIX) install
 
 	@echo ">>> Installing AX25 Apps"
 	@mkdir -p $(AX25_APPS_INITROOT)
@@ -343,6 +350,33 @@ $(NCURSES_LIB):
 	cd $(NCURSES_SRC) && make -j$$(nproc)
 	cd $(NCURSES_SRC) && make install.libs install.includes DESTDIR=$(NCURSES_PREFIX)
 
+.PHONY := direwolf
+
+direwolf-patch:
+	cd $(DIREWOLF_DIR) && git clean -fdx && git reset --hard
+	cd $(DIREWOLF_DIR) && mkdir -p build
+	cd $(DIREWOLF_DIR) && patch -p0 < $(abspath $(DIREWOLF_CMAKE_PATCH)) || true
+	cd $(DIREWOLF_DIR)/src && patch -p0 < $(abspath $(DIREWOLF_SRC_CMAKE_PATCH)) || true
+
+direwolf-build: direwolf-patch
+	cd $(DIREWOLF_BUILD) && cmake .. \
+		-DCMAKE_SYSTEM_NAME=smallham-linux \
+		-DEXTERNAL_ALSA_LIB=$(ALSA_PREFIX)/usr/lib/libasound.a \
+  		-DEXTERNAL_UDEV_LIB=$(LIBUDEVZERO_PREFIX)/usr/lib/libudev.a \
+		-DCMAKE_INSTALL_PREFIX=/usr \
+		-DCMAKE_BUILD_TYPE=MinSizeRel \
+		-DCMAKE_C_COMPILER=$(MUSL_CC) \
+		-DCMAKE_FIND_ROOT_PATH=$(TOOLCHAIN) \
+		-DCMAKE_C_FLAGS="-Os -ffunction-sections -fdata-sections -isystem $(LINUX_HEADERS_DIR)/include -I$(ALSA_PREFIX)/usr/include -I$(LIBUDEVZERO_PREFIX)/usr/include" \
+		-DCMAKE_EXE_LINKER_FLAGS="-Wl,--whole-archive $(ALSA_PREFIX)/usr/lib/libasound.a $(LIBUDEVZERO_PREFIX)/usr/lib/libudev.a -Wl,--no-whole-archive -static"
+
+	cd $(DIREWOLF_BUILD) && make -j$$(nproc)
+
+direwolf: direwolf-build
+	cd $(DIREWOLF_BUILD) && make DESTDIR=$(DIREWOLF_PREFIX) install
+	strip $(DIREWOLF_PREFIX)/usr/bin/direwolf
+	mkdir -p $(INITROOT)/usr/bin
+	cp $(DIREWOLF_PREFIX)/usr/bin/direwolf $(INITROOT)/usr/bin
 
 run: distro
 	qemu-system-x86_64 -m 40 \
