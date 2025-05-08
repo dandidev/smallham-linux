@@ -86,11 +86,13 @@ LIB_AX25_PREFIX := $(TOOLCHAIN)/lib-ax25
 
 AX25_TOOLS_REPO := https://github.com/dandidev/ax25-tools
 AX25_TOOLS_SRC := $(SOURCES)/ax25-tools
-AX25_TOOLS_PREFIX := $(INITROOT)/usr/bin
+AX25_TOOLS_PREFIX := $(BUILD)/ax25-tools
+AX25_TOOLS_INITROOT := $(INITROOT)/usr/bin
 
 AX25_APPS_REPO := https://github.com/dandidev/ax25-apps
 AX25_APPS_SRC := $(SOURCES)/ax25-apps
-AX25_APPS_PREFIX := $(INITROOT)/usr/bin
+AX25_APPS_PREFIX := $(BUILD)/ax25-apps
+AX25_APPS_INITROOT := $(INITROOT)/usr/bin
 
 NCURSES_PREFIX := $(TOOLCHAIN)/ncurses
 NCURSES_VERSION := 6.4
@@ -242,9 +244,23 @@ ax25-lib:
 	$(MAKE) -C $(SOURCES)/ax25-lib DESTDIR=$(LIB_AX25_PREFIX) install
 
 
-.PHONY: ax25-tools
+.PHONY: ax25-tools ax25-tools-build
 
-ax25-tools: ax25-lib
+ax25-tools: ax25-tools-build
+	@echo ">>> Installing AX25 Tools to initroot"
+	@for bin in $(AX25_TOOLS_BINARIES); do \
+		echo ">>> Searching for $$bin..."; \
+		found=$$(find $(AX25_TOOLS_PREFIX) -type f -name $$bin); \
+		if [ -n "$$found" ]; then \
+			echo ">>> Found: $$found -> Installing..."; \
+			cp $$found $(AX25_TOOLS_INITROOT)/; \
+		else \
+			echo ">>> Warning: $$bin not found!"; \
+			exit 1; \
+		fi; \
+	done
+
+ax25-tools-build: ax25-lib
 	@echo ">>> Downloading AX25 Tools"
 	@if [ ! -d "$(AX25_TOOLS_SRC)" ]; then \
 		git clone $(AX25_TOOLS_REPO) $(AX25_TOOLS_SRC); \
@@ -261,25 +277,29 @@ ax25-tools: ax25-lib
 		CFLAGS="-Os" \
 		./configure --prefix=/usr --enable-static
 	$(MAKE) -C $(SOURCES)/ax25-tools
+	$(MAKE) -C $(SOURCES)/ax25-tools DESTDIR=$(AX25_TOOLS_PREFIX) install 
 
-	@echo ">>> Installing AX25 Tools to initroot"
-	@mkdir -p $(AX25_TOOLS_PREFIX)
+	@echo ">>> Installing AX25 Tools"
+	@mkdir -p $(AX25_TOOLS_INITROOT)
 
-	@for bin in $(AX25_TOOLS_BINARIES); do \
+
+.PHONY: ax25-apps ax25-apps-build
+
+ax25-apps: ax25-apps-build
+	@echo ">>> Installing AX25 Apps to initroot"
+	@for bin in $(AX25_APPS_BINARIES); do \
 		echo ">>> Searching for $$bin..."; \
-		found=$$(find $(SOURCES)/ax25-tools -type f -name $$bin); \
+		found=$$(find $(AX25_APPS_PREFIX) -type f -name $$bin); \
 		if [ -n "$$found" ]; then \
 			echo ">>> Found: $$found -> Installing..."; \
-			cp $$found $(AX25_TOOLS_PREFIX)/; \
+			cp $$found $(AX25_APPS_INITROOT)/; \
 		else \
 			echo ">>> Warning: $$bin not found!"; \
 			exit 1; \
 		fi; \
 	done
 
-.PHONY: ax25-apps
-
-ax25-apps: ax25-lib ax25-tools ncurses-install
+ax25-apps-build: ax25-lib ax25-tools ncurses-install
 	@echo ">>> Downloading AX25 Apps"
 	@if [ ! -d "$(AX25_APPS_SRC)" ]; then \
 		git clone $(AX25_APPS_REPO) $(AX25_APPS_SRC); \
@@ -288,6 +308,7 @@ ax25-apps: ax25-lib ax25-tools ncurses-install
 	fi
 	@echo ">>> Running autoreconf..."
 	cd $(SOURCES)/ax25-apps && autoreconf --install --force
+
 	@echo ">>> Building AX25 Apps"
 	cd $(SOURCES)/ax25-apps && \
 		CPPFLAGS="-I$(LIB_AX25_PREFIX)/usr/include" \
@@ -295,21 +316,10 @@ ax25-apps: ax25-lib ax25-tools ncurses-install
 		CFLAGS="-Os" \
 		./configure --prefix=/usr --enable-static
 	$(MAKE) -C $(SOURCES)/ax25-apps
+	$(MAKE) -C $(SOURCES)/ax25-apps DESTDIR=$(AX25_APPS_PREFIX) install
 
-	@echo ">>> Installing AX25 Apps to initroot"
-	@mkdir -p $(AX25_APPS_PREFIX)
-
-	@for bin in $(AX25_APPS_BINARIES); do \
-		echo ">>> Searching for $$bin..."; \
-		found=$$(find $(SOURCES)/ax25-apps -type f -name $$bin); \
-		if [ -n "$$found" ]; then \
-			echo ">>> Found: $$found -> Installing..."; \
-			cp $$found $(AX25_APPS_PREFIX)/; \
-		else \
-			echo ">>> Warning: $$bin not found!"; \
-			exit 1; \
-		fi; \
-	done
+	@echo ">>> Installing AX25 Apps"
+	@mkdir -p $(AX25_APPS_INITROOT)
 
 ncurses-install: $(NCURSES_LIB)
 
