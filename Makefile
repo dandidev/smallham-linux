@@ -77,7 +77,7 @@ LINUX_HEADERS_DIR := $(abspath toolchain/linux-headers)
 BUSYBOX_VERSION := 1.37.0
 BUSYBOX_TARBALL := busybox-$(BUSYBOX_VERSION).tar.bz2
 BUSYBOX_URL := https://busybox.net/downloads/$(BUSYBOX_TARBALL)
-BUSYBOX_SRC := sources/busybox-$(BUSYBOX_VERSION)
+BUSYBOX_SRC := $(SRC)/busybox-$(BUSYBOX_VERSION)
 
 LIB_AX25_REPO := https://github.com/dandidev/libax25
 LIB_AX25_SRC := $(SRC)/ax25-lib
@@ -110,7 +110,7 @@ DIREWOLF_PREFIX := $(TOOLCHAIN)/direwolf
 MODSRC := $(BUILD)
 MODDST := "$(INITROOT)/lib/modules/$(LINUX_VERSION)"
 
-.PHONY: all run clean busybox distclean iso
+.PHONY: all run clean distclean iso
 
 all: kernel busybox
 
@@ -129,12 +129,11 @@ $(LINUX_SRC): $(SRC)/$(LINUX_TARBALL)
 	@echo ">>> Extracting Linux kernel..."
 	tar -xf $< -C $(SRC)
 
-$(KOBJ)/.config: $(LINUX_SRC)
+$(LINUX_SRC)/.config: $(LINUX_SRC)
 	@echo ">>> Preparing Linux kernel configuration"
-	mkdir -p $(KOBJ)
 	cp modules/base/kernel.config $@ 
 
-$(KOBJ)/arch/x86/boot/bzImage: $(KOBJ)/.config $(LINUX_SRC)/Makefile
+$(KOBJ)/arch/x86/boot/bzImage: $(LINUX_SRC)/.config
 	@echo ">>> Building Linux kernel $(LINUX_VERSION)"
 	$(MAKE) -C $(LINUX_SRC)   mrproper
 	$(MAKE) -C $(LINUX_SRC) O=$(KOBJ) olddefconfig
@@ -145,20 +144,21 @@ busybox: $(INITROOT)/bin/busybox
 
 $(SRC)/$(BUSYBOX_TARBALL):
 	@echo ">>> Downloading BusyBox $(BUSYBOX_VERSION)"
-	@mkdir -p sources
-	curl -L $(BUSYBOX_URL) -o $(SRC)/$@
+	@mkdir -p $(SRC)
+	curl -L $(BUSYBOX_URL) -o $@
 
-$(BUSYBOX_SRC): $(BUSYBOX_TARBALL)
+$(BUSYBOX_SRC): $(SRC)/$(BUSYBOX_TARBALL)
 	@echo ">>> Extracting BusyBox..."
-	tar -xf $(SRC)/$< -C $(SRC)
+	tar -xf $< -C $(SRC)
 
-$(BBOBJ)/.config: $(BUSYBOX_SRC) modules/base/busybox.config
+$(BUSYBOX_SRC)/.config: $(BUSYBOX_SRC)
 	@echo ">>> Preparing BusyBox configuration"
-	mkdir -p $(BBOBJ)
 	cp modules/base/busybox.config $@
 
-$(BBOBJ)/busybox: $(BBOBJ)/.config
+$(BBOBJ)/busybox: $(BUSYBOX_SRC)/.config
 	@echo ">>> Building BusyBox"
+	mkdir -p $(BBOBJ)
+	$(MAKE) -C $(BUSYBOX_SRC) mrproper
 	$(MAKE) -C $(BUSYBOX_SRC) O=$(BBOBJ) oldconfig
 	$(MAKE) -C $(BUSYBOX_SRC) O=$(BBOBJ)
 
@@ -211,9 +211,21 @@ endif
 	depmod -b $(INITROOT) $(LINUX_VERSION)
 
 $(INITROOT)/init.cpio: create-initfs-modules create-initfs-symlinks ax25 direwolf
-	echo ">>> Creating initramfs..."
+	@echo ">>> Size BEFORE strip"
+	@du -sh $(INITROOT)
+
+	@echo ">>> Stripping binaries"
+	find $(INITROOT) -type f -perm /a+x -print0 \
+	  | xargs -0 file -i \
+	  | awk -F: '/application\/x-executable/{print $$1}' \
+	  | xargs -r strip --strip-all
+
+	@echo ">>> Size AFTER strip"
+	@du -sh $(INITROOT)
+
+	@echo ">>> Creating initramfs..."
 	cd $(INITROOT) && find . | cpio -o -H newc --quiet > $(BUILD)/init.cpio
-	echo ">>> Initramfs is done: $(BUILD)/init.cpio"
+	@echo ">>> Initramfs is done: $(BUILD)/init.cpio"
 
 .PHONY: install-ax25
 
@@ -282,7 +294,7 @@ ax25-tools-build: ax25-lib
 		CPPFLAGS="-I$(LIB_AX25_PREFIX)/usr/include" \
 		LDFLAGS="-L$(LIB_AX25_PREFIX)/usr/lib -static" \
 		CFLAGS="-Os" \
-		./configure --prefix=/usr --enable-static
+		./configure --prefix=/usr --enable-static --without-x
 	$(MAKE) -C $(SRC)/ax25-tools
 	$(MAKE) -C $(SRC)/ax25-tools DESTDIR=$(AX25_TOOLS_PREFIX) install 
 
@@ -352,13 +364,21 @@ $(NCURSES_LIB):
 
 .PHONY := direwolf
 
-direwolf-patch:
+direwolf-donwload:
+	@echo ">>> Building and installing Direwolf"
+	@if [ ! -d "$(DIREWOLF_DIR)" ]; then \
+		git clone $(DIREWOLF_REPO) $(DIREWOLF_DIR); \
+	else \
+		echo "Direwolf repo already exists."; \
+	fi
+
+direwolf-patch: direwolf-donwload
 	cd $(DIREWOLF_DIR) && git clean -fdx && git reset --hard
 	cd $(DIREWOLF_DIR) && mkdir -p build
 	cd $(DIREWOLF_DIR) && patch -p0 < $(abspath $(DIREWOLF_CMAKE_PATCH)) || true
 	cd $(DIREWOLF_DIR)/src && patch -p0 < $(abspath $(DIREWOLF_SRC_CMAKE_PATCH)) || true
 
-direwolf-build: direwolf-patch
+direwolf-build: direwolf-patch libudev-zero-install alsa-install
 	cd $(DIREWOLF_BUILD) && cmake .. \
 		-DCMAKE_SYSTEM_NAME=smallham-linux \
 		-DEXTERNAL_ALSA_LIB=$(ALSA_PREFIX)/usr/lib/libasound.a \
