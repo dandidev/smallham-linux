@@ -257,8 +257,8 @@ ax25-tools: ax25-lib
 	@echo ">>> Building AX25 Tools"
 	cd $(SOURCES)/ax25-tools && \
 		CPPFLAGS="-I$(LIB_AX25_PREFIX)/usr/include" \
-		LDFLAGS="-L$(LIB_AX25_PREFIX)/usr/lib" \
-		CFLAGS="-Os" LDFLAGS="-s" \
+		LDFLAGS="-L$(LIB_AX25_PREFIX)/usr/lib -static" \
+		CFLAGS="-Os" \
 		./configure --prefix=/usr --enable-static
 	$(MAKE) -C $(SOURCES)/ax25-tools
 
@@ -291,8 +291,8 @@ ax25-apps: ax25-lib ax25-tools ncurses-install
 	@echo ">>> Building AX25 Apps"
 	cd $(SOURCES)/ax25-apps && \
 		CPPFLAGS="-I$(LIB_AX25_PREFIX)/usr/include" \
-		LDFLAGS="-L$(LIB_AX25_PREFIX)/usr/lib" \
-		CFLAGS="-Os" LDFLAGS="-s" \
+		LDFLAGS="-L$(LIB_AX25_PREFIX)/usr/lib -L$(NCURSES_PREFIX)/usr/lib -static" \
+		CFLAGS="-Os" \
 		./configure --prefix=/usr --enable-static
 	$(MAKE) -C $(SOURCES)/ax25-apps
 
