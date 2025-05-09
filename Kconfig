@@ -59,3 +59,12 @@ config AX25_APPS
         depends on AX25_APPS
 
 endmenu
+
+menu "Extras"
+
+config DIREWOLF
+    bool "Direwolf"
+    depends on SOUND
+    depends on NET
+
+endmenu
