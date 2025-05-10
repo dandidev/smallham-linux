@@ -251,12 +251,12 @@ route add default gw 10.0.2.2
 # TODO's
 - busybox build only used package -ok, but not enought
 - bootchart optimalization
-- makefile... (borderline crazy, I'm learning this now)
-- later make built tool switch to meson
 - init.cpio rename to initramfs.cpio
 - create module to kiss package manager (kiss pm, certs, wget ssl) - depend tinygcc
 - fix poweroff
 - config module compression 
+- modules build move to Makefile
+- Makefile packages move into separate dependencies
 - usb modules->kernel/fs/nls/nls_base.ko->utf16s_to_utf8s() thinking
 - testing all module
 - testing direwolf communication
