@@ -262,3 +262,4 @@ route add default gw 10.0.2.2
 - testing direwolf communication
 - testing netrom routing
 - testing digirig connection with direwolf
+- testing another linux (tested only Arch linux)

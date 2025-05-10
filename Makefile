@@ -139,7 +139,7 @@ MODDST := "$(INITROOT)/lib/modules/$(KERNEL_VERSION)"
 # --------------------------------------------------------------------
 
 .PHONY: extras kernel busybox run clean distclean iso \
-        ax25-lib ncurses-install direwolf direwolf-patch \
+        ax25-lib ncurses direwolf direwolf-patch \
         clean-distro dbg-vars
 
 distro: $(INITROOT)/init.cpio
@@ -218,7 +218,7 @@ busybox: $(INITROOT)/bin/busybox
 $(BUSYBOX_SRC)/.prepared:
 	@mkdir -p $(SOURCES)
 	curl -L $(BUSYBOX_URL) -o $(SOURCES)/$(BUSYBOX_TARBALL)
-	tar -xf $(BUSYBOX_TARBALL) -C $(SOURCES)
+	tar -xf $(SOURCES)/$(BUSYBOX_TARBALL) -C $(SOURCES)
 	@touch $@
 
 $(BUSYBOX_BUILD)/busybox: modules/base/busybox.config $(BUSYBOX_SRC)/.prepared
@@ -264,7 +264,7 @@ ax25-tools: ax25-lib $(AX25_TOOLS_SRC)/.prepared
 	$(MAKE) -C $(AX25_TOOLS_SRC) DESTDIR=$(AX25_TOOLS_PREFIX) install
 	@mkdir -p $(AX25_TOOLS_INITROOT)
 
-ax25-apps: ax25-tools ncurses-install $(AX25_APPS_SRC)/.prepared
+ax25-apps: ax25-tools ncurses $(AX25_APPS_SRC)/.prepared
 	@mkdir -p $(AX25_APPS_PREFIX)
 	cd $(AX25_APPS_SRC) && autoreconf --install --force
 	cd $(AX25_APPS_SRC) && CPPFLAGS="-I$(LIB_AX25_PREFIX)/usr/include" \
@@ -281,7 +281,7 @@ $(NCURSES_SRC)/.prepared:
 	curl -L $(NCURSES_URL) | tar xz -C $(SOURCES)
 	@touch $@
 
-ncurses-install: $(NCURSES_LIB)
+ncurses: $(NCURSES_LIB)
 $(NCURSES_LIB): $(NCURSES_SRC)/.prepared
 	cd $(NCURSES_SRC) && make distclean || true
 	cd $(NCURSES_SRC) && ./configure --prefix=/usr --enable-widec --enable-static --disable-shared --with-normal --without-debug
@@ -300,7 +300,7 @@ direwolf-patch: $(DIREWOLF_SRC)/.prepared
 	cd $(DIREWOLF_SRC) && patch -p0 < $(abspath $(DIREWOLF_CMAKE_PATCH)) || true
 	cd $(DIREWOLF_SRC)/src && patch -p0 < $(abspath $(DIREWOLF_SRC_CMAKE_PATCH)) || true
 
-direwolf: direwolf-patch libudev-zero-install alsa-install
+direwolf: direwolf-patch libudev-zero alsa-lib
 	cd $(DIREWOLF_SRC) && cmake \
 	  -DCMAKE_SYSTEM_NAME=smallham-linux \
 	  -DEXTERNAL_ALSA_LIB=$(ALSA_PREFIX)/usr/lib/libasound.a \
@@ -318,14 +318,15 @@ direwolf: direwolf-patch libudev-zero-install alsa-install
 	strip $(DIREWOLF_PREFIX)/usr/bin/direwolf
 	@mkdir -p $(INITROOT)/usr/bin
 	cp $(DIREWOLF_PREFIX)/usr/bin/direwolf $(INITROOT)/usr/bin
-	
-alsa-install: musl-install
-	@echo ">>> Building ALSA v$(ALSA_VERSION)"
-	@if [ ! -d "$(ALSA_SRC)" ]; then \
-		mkdir -p $(SOURCES); \
-		curl -L $(ALSA_URL) -o $(SOURCES)/$(ALSA_TARBALL); \
-		tar xjf $(SOURCES)/$(ALSA_TARBALL) -C $(SOURCES); \
-	fi
+
+#---------------------------------------------------------------------
+
+$(ALSA_SRC)/.prepared:
+	curl -L $(ALSA_URL) -o $(SOURCES)/$(ALSA_TARBALL);
+	tar xjf $(SOURCES)/$(ALSA_TARBALL) -C $(SOURCES);
+	@touch $@
+
+alsa-lib: $(ALSA_SRC)/.prepared musl
 	cd $(ALSA_SRC) && CC=$(MUSL_CC) ./configure \
 		--prefix=/usr \
 		--enable-static \
@@ -341,16 +342,14 @@ alsa-install: musl-install
 	cd $(ALSA_SRC) && make
 	cd $(ALSA_SRC) && make DESTDIR=$(ALSA_PREFIX) install
 
-musl-install: | kernel
-	@echo ">>> Building MUSL $(MUSL_VERSION)"
-	@if [ ! -d "$(SOURCES)" ]; then mkdir -p $(SOURCES); fi
-	@if [ ! -f "$(SOURCES)/$(MUSL_TARBALL)" ]; then \
-		curl -L $(MUSL_URL) -o $(SOURCES)/$(MUSL_TARBALL); \
-	fi
-	@if [ ! -d "$(MUSL_SRC)" ]; then \
-		tar -xzf $(SOURCES)/$(MUSL_TARBALL) -C $(SOURCES); \
-	fi
+#---------------------------------------------------------------------
 
+$(MUSL_SRC)/.prepared:
+	curl -L $(MUSL_URL) -o $(SOURCES)/$(MUSL_TARBALL);
+	tar -xzf $(SOURCES)/$(MUSL_TARBALL) -C $(SOURCES);
+	@touch $@
+
+musl: $(MUSL_SRC)/.prepared | kernel
 	cd $(MUSL_SRC) && make distclean || true
 	cd $(MUSL_SRC) && CFLAGS="-Os -I$(LINUX_HEADERS_DIR)/include" ./configure --prefix=$(MUSL_PREFIX)
 	cd $(MUSL_SRC) && make
@@ -359,15 +358,17 @@ musl-install: | kernel
 export MUSL_PREFIX := $(MUSL_PREFIX)
 export MUSL_CC := $(MUSL_PREFIX)/bin/musl-gcc
 
-libudev-zero-install:
-	@echo ">>> Building libudev-zero v$(LIBUDEVZERO_VERSION)"
-	@if [ ! -d "$(LIBUDEVZERO_SRC)" ]; then \
-		mkdir -p $(SOURCES); \
-		curl -L $(LIBUDEVZERO_URL) -o $(SOURCES)/$(LIBUDEVZERO_TARBALL); \
-		tar xzf $(SOURCES)/$(LIBUDEVZERO_TARBALL) -C $(SOURCES); \
-	fi
+#---------------------------------------------------------------------
+
+$(LIBUDEVZERO_SRC)/.prepared:
+	curl -L $(LIBUDEVZERO_URL) -o $(SOURCES)/$(LIBUDEVZERO_TARBALL);
+	tar xzf $(SOURCES)/$(LIBUDEVZERO_TARBALL) -C $(SOURCES);
+	@touch $@
+
+libudev-zero: $(LIBUDEVZERO_SRC)/.prepared
 	cd $(LIBUDEVZERO_SRC) && LDFLAGS="-s" make
 	cd $(LIBUDEVZERO_SRC) && make PREFIX=$(LIBUDEVZERO_PREFIX)/usr install
+
 #---------------------------------------------------------------------
 
 run: distro
@@ -387,7 +388,3 @@ iso: distro
 clean:
 	rm -rf $(BUILD)/*
 	rm -rf $(PREFIX)/*
-
-distclean:
-	$(MAKE) -C $(SOURCES)/busybox O=$(BUSYBOX_BUILD) distclean
-	$(MAKE) -C $(SOURCES)/linux  O=$(KERNEL_BUILD)  distclean
