@@ -196,16 +196,16 @@ $(INITROOT)/bin/busybox: $(BUSYBOX_BUILD)/busybox
 
 # --------------------------------------------------------------------
 
-distro: kernel busybox $(INITROOT)/init.cpio
+distro: $(INITROOT)/init.cpio
 
 clean-distro:
 	rm -rf $(INITROOT)
 
-create-initfs-symlinks: $(INITROOT)/bin/busybox
+create-initfs-symlinks: busybox
 	cd $(INITROOT)/bin && ln -sf bin/init ../init && \
 	for c in $$(./busybox --list); do ln -sf busybox $$c; done
 
-create-initfs-modules: kernel busybox
+create-initfs-modules: kernel
 	rsync -r modules/base/initroot/ $(INITROOT)/
 ifeq ($(CONFIG_NET),y)
 	rsync -r modules/network/initroot/ $(INITROOT)/
@@ -274,7 +274,7 @@ ax25-apps: ax25-apps-build
 	  if [ -n "$$found" ]; then cp $$found $(AX25_APPS_INITROOT)/; else exit 1; fi; \
 	done
 
-ax25-apps-build: ax25-lib ax25-tools ncurses-install $(AX25_APPS_SRC)/.prepared
+ax25-apps-build: ax25-tools ncurses-install $(AX25_APPS_SRC)/.prepared
 	@mkdir -p $(AX25_APPS_PREFIX)
 	cd $(AX25_APPS_SRC) && autoreconf --install --force
 	cd $(AX25_APPS_SRC) && CPPFLAGS="-I$(LIB_AX25_PREFIX)/usr/include" \
