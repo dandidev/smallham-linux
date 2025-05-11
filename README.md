@@ -249,17 +249,18 @@ ifconfig eth0 10.0.2.15 netmask 255.255.255.0 up
 route add default gw 10.0.2.2
 ```
 # TODO's
-- busybox build only used package -ok, but not enought
-- bootchart optimalization
+- BusyBox build only used package -ok, but not enought
+- Refactor HAM module into a selectable list format
+- Bootchart optimalization
 - init.cpio rename to initramfs.cpio
-- create module to kiss package manager (kiss pm, certs, wget ssl) - depend tinygcc
-- fix poweroff
-- config module compression 
-- modules build move to Makefile
+- Create module to kiss package manager (kiss pm, certs, wget ssl) - depend tinygcc
+- Fix poweroff
+- Config module size optimalization
+- Extract module builds from the main Makefile into separate Makefiles
 - Makefile packages move into separate dependencies
-- usb modules->kernel/fs/nls/nls_base.ko->utf16s_to_utf8s() thinking
-- testing all module
-- testing direwolf communication
-- testing netrom routing
-- testing digirig connection with direwolf
-- testing another linux (tested only Arch linux)
+- USB modules->kernel/fs/nls/nls_base.ko->utf16s_to_utf8s() thinking
+- Testing all module
+- Testing direwolf communication
+- Testing netrom routing
+- Testing digirig connection with direwolf
+- Testing another linux (tested only Arch linux)
