@@ -1,0 +1,40 @@
+--- CMakeLists.txt.orig	2025-05-06 02:07:20.642878094 +0200
++++ CMakeLists.txt	2025-05-06 02:07:47.705758877 +0200
+@@ -43,11 +43,8 @@
+   dsp.c
+   dtime_now.c
+   dtmf.c
+-  dwgps.c
+   dwsock.c
+   encode_aprs.c
+-  encode_aprs.c
+-  fcs_calc.c
+   fcs_calc.c
+   fx25_encode.c
+   fx25_extract.c
+@@ -72,7 +69,6 @@
+   kissserial.c
+   kissnet.c
+   latlong.c
+-  latlong.c
+   log.c
+   morse.c
+   multi_modem.c
+@@ -97,7 +93,7 @@
+   mheard.c
+   )
+ 
+-if(LINUX)
++if(LINUX OR ${CMAKE_SYSTEM_NAME} STREQUAL "smallham-linux")
+   list(APPEND direwolf_SOURCES
+     audio.c
+     )
+@@ -490,7 +486,7 @@
+     ${MISC_LIBRARIES}
+     )
+ 
+-  if (LINUX)
++  if (LINUX OR ${CMAKE_SYSTEM_NAME} STREQUAL "smallham-linux")
+     target_link_libraries(cm108
+       ${UDEV_LIBRARIES}
+       )

@@ -1,14 +1,24 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Configuration
+# SmallHam Configuration
 #
 
 #
 # Module selection
 #
-# CONFIG_HAM is not set
-CONFIG_FS=y
-CONFIG_OVERLAYFS=y
-# CONFIG_NET is not set
+CONFIG_HAM=y
+# CONFIG_FS is not set
+CONFIG_NET=y
 # CONFIG_USB is not set
-# CONFIG_SOUND is not set
+CONFIG_SOUND=y
+
+#
+# Extras
+#
+CONFIG_AX25_TOOLS=y
+CONFIG_AX25_TOOLS_NETROMD=y
+CONFIG_AX25_TOOLS_KISS=y
+CONFIG_AX25_APPS=y
+CONFIG_AX25_APPS_CALL=y
+CONFIG_AX25_APPS_MONITOR=y
+CONFIG_DIREWOLF=y

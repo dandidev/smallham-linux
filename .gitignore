@@ -1,5 +1,6 @@
 /build
 /sources
+/toolchain
 
 /cloned
 /initroot/bin/*
@@ -14,3 +15,7 @@ isolinux.bin
 ldlinux.c32
 
 mylinux.iso
+
+*.img
+*.tar.*
+.vscode

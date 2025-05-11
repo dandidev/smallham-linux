@@ -1,4 +1,4 @@
-# Minimal Linux – Educational System-Building Project
+# SmallHam minimal linux – Educational System-Building Project
 
 This project aims to create a minimal Linux system primarily for learning purposes. The goal is to gain a deep understanding of how a Linux-based system is constructed from the ground up, and how to assemble a working distribution using a modular approach with the Linux kernel, BusyBox, and optional components.
 ## Key Objectives:
@@ -8,7 +8,6 @@ This project aims to create a minimal Linux system primarily for learning purpos
 - Integrate core utilities using BusyBox
 - Configure the distribution using Kconfig and Makefiles
 - Produce a bootable ISO image for QEMU/VirtualBox (VirtualBox is not recommended)
-- **Support a modular architecture for future package management and automation**  
 - **Enable amateur radio control testing on minimal hardware**
 
 ## Amateur Radio Support
@@ -59,7 +58,7 @@ The project is under active development, with new modules, configuration options
 
 ## Getting started
 ### Prerequisites 
-#### packages
+#### Packages
 ```shell
 sudo pacman -S syslinux
 sudo pacman -S genisoiamge
@@ -71,28 +70,10 @@ sudo pacman -S kconfig-frontends
 https://github.com/dandidev/small-linux.git
 ```
 
-#### Clone dependencies to source folder
-- Linux kernel
-```shell
-git clone --depth 1 --branch master https://github.com/torvalds/linux.git
-```
-- Busybox
-```shell
-git clone https://git.busybox.net/busybox
-```
-- Kiss package manager
-```shell
-git clone https://github.com/kisslinux/kiss.git
-```
-
 ### Build mini linux
 - Select modules
 ```shell
 make menuconfig
-```
-- Build kernel with modules
-```shell
-make -j$(nproc) all
 ```
 - Create distro
 ```shell
@@ -103,7 +84,7 @@ make distro
 make iso
 ```
 
-### Qemu
+### Run with Qemu
 - Run linux
 ```
 qemu-system-x86_64 -m 40 
@@ -155,51 +136,25 @@ qemu-system-x86_64 -m 40 \
   -boot d
 ```
 
-## Install ham tools
-### download
-https://linux-ax25.in-berlin.de/pub/
+### How to
 
-## ax25-lib
+#### Direwolf
+- Configuration
 ```shell
-#autoreconf -fi
-CFLAGS="-Os" LDFLAGS="-s" ./configure --prefix=/usr --enable-static
-make -j$(nproc)
-make DESTDIR=../../initroot/ install
+echo "ADEVICE plughw:0,0" > /etc/direwolf.conf
+```
+- Run
+```shell
+direwolf -f 0 -c /etc/direwolf.conf
 ```
 
-## ax25-tools (TODO: push new code)
-```shell
-CFLAGS="-Os" LDFLAGS="-s" ./configure \
-  --prefix=/usr \
-  CPPFLAGS="-I$PWD/../../initroot/usr/include" \
-  LDFLAGS="-L$PWD/../../initroot/usr/lib" \
-  --prefix=/usr --without-x
-make LDFLAGS="-static" -j$(nproc)
-make DESTDIR=../../initroot/ install
-```
-
-## ax25-apps (TODO: push new code)
-```shell
-# libtoolize --force --copy
-# aclocal
-# autoheader
-# automake --add-missing
-# autoconf
-CFLAGS="-Os" LDFLAGS="-s" ./configure \
-  --prefix=/usr \
-  CPPFLAGS="-I$PWD/../../initroot/usr/include" \
-  LDFLAGS="-L$PWD/../../initroot/usr/lib"
-make -j$(nproc)
-make DESTDIR=../../initroot/ install
-```
-
-# Strip all binaries in initroot
+#### Strip all binaries in initroot
 ```shell
 find initroot -type f -executable -exec strip {} \;
 ```
 
 
-# Create ISO
+#### Create ISO
 - dependencies
 - - sudo pacman -S syslinux
 - - sudo pacman -S genisoiamge
@@ -218,34 +173,52 @@ genisoimage -o mylinux.iso \
   -iso-level 3 -quiet \
   iso/
 ```
-# Linux commands
-## Filesystem
+#### Linux commands
+###### Filesystem
 ```shell
 # find connected disk and create partition
 fdisk -l
 # create ext4 fs
 mke2fs /dev/vda1
 ```
-## Soundcard
+###### Soundcard
 ```shell
 ls -la /sys/class/sound/ 
 cat /proc/asound/cards
 lsusb
 ```
-## Network
-### IP settings
+###### IP settings
 ```shell
 ip link set eth0 up
 udhcpc -i eth0
 ifconfig eth0 10.0.2.15 netmask 255.255.255.0 up
 route add default gw 10.0.2.2
 ```
+### Under Construction
+
+#### Package manager 
+- Kiss package manager
+```shell
+git clone https://github.com/kisslinux/kiss.git
+```
+- TinyGCC
+https://bellard.org/tcc/
+
+
 # TODO's
-- busybox build only used package -ok, but not enought
-- bootchart optimalization
-- makefile add required tools
+- BusyBox build only used package -ok, but not enought
+- Refactor HAM module into a selectable list format
+- Bootchart optimalization
 - init.cpio rename to initramfs.cpio
-- create module to kiss package manager (kiss pm, certs, wget ssl)
-- fix poweroff
-- config module compression how to
-- usb modules->kernel/fs/nls/nls_base.ko->utf16s_to_utf8s() thinking
+- Create module to kiss package manager (kiss pm, certs, wget ssl) - depend tinygcc
+- Fix poweroff
+- Config module size optimalization
+- Extract module builds from the main Makefile into separate Makefiles
+- Makefile packages move into separate dependencies
+- USB modules->kernel/fs/nls/nls_base.ko->utf16s_to_utf8s() thinking
+- Refactor lib module in MODMAP
+- Testing all module
+- Testing direwolf communication
+- Testing netrom routing
+- Testing digirig connection with direwolf
+- Testing another linux (tested only Arch linux)
