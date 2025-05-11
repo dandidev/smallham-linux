@@ -95,6 +95,7 @@ define _split
 $(word $(1),$(subst $(bar), ,$(2)))
 endef
 
+DISTRO_MODLISTS :=
 BUILD_PKGS :=
 DIREWOLF_BINS :=
 AX25_TOOLS_BINS :=
@@ -103,6 +104,11 @@ AX25_APPS_BINS:=
 define ProcessFeature
 $(if $(CONFIG_$(call _split,1,$(1))),\
   $(eval BUILD_PKGS += $(call _split,2,$(1))))
+endef
+
+define ProcessKernelModules
+$(if $(CONFIG_$(call _split,1,$(1))),\
+  $(eval DISTRO_MODLISTS += $(call _split,2,$(1))))
 endef
 
 define ProcessBin
@@ -121,17 +127,19 @@ $(foreach b,$(BINMAP)  ,$(call ProcessBin,$(b)))
 
 # --------------------------------------------------------------------
 
-MODMAP := \
-  HAM          modules/ham.modlist          \
-  USB          modules/usb.modlist          \
-  USB_STORAGE  modules/usb-storage.modlist  \
-  FS           modules/fs.modlist           \
-  OVERLAY_FS   modules/overlay-fs.modlist   \
-  NET          modules/network.modlist      \
-  SOUND        modules/sound.modlist
+MODMAP += BASIC|
+MODMAP += HAM|modules/ham.modlist
+MODMAP += HAM|modules/lib.modlist
+MODMAP += USB|modules/usb.modlist
+MODMAP += USB_STORAGE|modules/usb-storage.modlist
+MODMAP += FS|modules/fs.modlist
+MODMAP += OVERLAY_FS|modules/overlay-fs.modlist
+MODMAP += NET|modules/network.modlist
+MODMAP += NET|modules/lib.modlist
+MODMAP += SOUND|modules/sound.modlist
+MODMAP += SOUND|modules/lib.modlist
 
-$(foreach m,$(MODMAP),\
-  $(if $(filter y,$(CONFIG_$(word 1,$(m)))),$(eval DISTRO_MODLISTS += $(word 2,$(m)))))
+$(foreach f,$(MODMAP),$(call ProcessKernelModules,$(f)))
 
 MODSRC := $(BUILD)
 MODDST := "$(INITROOT)/lib/modules/$(KERNEL_VERSION)"
@@ -185,6 +193,7 @@ dbg-vars:
 	@echo "DIREWOLF_BINS = $(DIREWOLF_BINS)"
 	@echo "AX25_TOOLS_BINS = $(AX25_TOOLS_BINS)"
 	@echo "AX25_APPS_BINS  = $(AX25_APPS_BINS)"
+	@echo "DISTRO_MODLISTS  = $(DISTRO_MODLISTS)"
 
 # --------------------------------------------------------------------
 
