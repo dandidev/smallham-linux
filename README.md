@@ -216,6 +216,7 @@ https://bellard.org/tcc/
 - Extract module builds from the main Makefile into separate Makefiles
 - Makefile packages move into separate dependencies
 - USB modules->kernel/fs/nls/nls_base.ko->utf16s_to_utf8s() thinking
+- Refactor lib module in MODMAP
 - Testing all module
 - Testing direwolf communication
 - Testing netrom routing

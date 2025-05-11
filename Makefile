@@ -127,7 +127,6 @@ $(foreach b,$(BINMAP)  ,$(call ProcessBin,$(b)))
 
 # --------------------------------------------------------------------
 
-MODMAP += BASIC|
 MODMAP += HAM|modules/ham.modlist
 MODMAP += HAM|modules/lib.modlist
 MODMAP += USB|modules/usb.modlist
@@ -142,7 +141,7 @@ MODMAP += SOUND|modules/lib.modlist
 $(foreach f,$(MODMAP),$(call ProcessKernelModules,$(f)))
 
 MODSRC := $(BUILD)
-MODDST := "$(INITROOT)/lib/modules/$(KERNEL_VERSION)"
+MODDST := $(INITROOT)/lib/modules/$(KERNEL_VERSION)
 
 # --------------------------------------------------------------------
 
