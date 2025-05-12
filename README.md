@@ -153,6 +153,13 @@ direwolf -f 0 -c /etc/direwolf.conf
 find initroot -type f -executable -exec strip {} \;
 ```
 
+#### .img mount
+```shell
+sudo losetup -fP hdd.img
+#losetup -a
+#lsblk
+sudo mount /dev/loop0p1 /mnt
+```
 
 #### Create ISO
 - dependencies
