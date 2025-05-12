@@ -14,6 +14,10 @@ ISOIMG := $(BUILD)/my-linux.iso
 
 # --------------------------------------------------------------------
 
+include $(wildcard packages/*.mk)
+
+# --------------------------------------------------------------------
+
 KERNEL_VERSION := 6.6.30
 KERNEL_TARBALL := linux-$(KERNEL_VERSION).tar.xz
 KERNEL_URL := https://cdn.kernel.org/pub/linux/kernel/v6.x/$(KERNEL_TARBALL)
@@ -46,7 +50,6 @@ NCURSES_TARBALL := ncurses-$(NCURSES_VERSION).tar.gz
 NCURSES_URL := https://ftp.gnu.org/pub/gnu/ncurses/$(NCURSES_TARBALL)
 NCURSES_SRC := $(SOURCES)/ncurses-$(NCURSES_VERSION)
 NCURSES_PREFIX := $(PREFIX)/ncurses
-NCURSES_LIB := $(NCURSES_PREFIX)/usr/lib/libncursesw.a
 
 DIREWOLF_REPO := https://github.com/wb2osz/direwolf.git
 DIREWOLF_SRC := $(SOURCES)/direwolf
@@ -55,7 +58,7 @@ DIREWOLF_PREFIX := $(BUILD)/direwolf
 DIREWOLF_CMAKE_PATCH := patches/direwolf-cmakelists.patch
 DIREWOLF_SRC_CMAKE_PATCH := patches/direwolf-src-cmakelists.patch
 
-ALSA_VERSION := 1.2.3.2
+ALSA_VERSION := 1.2.14
 ALSA_TARBALL := alsa-lib-$(ALSA_VERSION).tar.bz2
 ALSA_URL := https://www.alsa-project.org/files/pub/lib/$(ALSA_TARBALL)
 ALSA_SRC := $(SOURCES)/alsa-lib-$(ALSA_VERSION)
@@ -74,56 +77,42 @@ LIBUDEVZERO_SRC := $(SOURCES)/libudev-zero-$(LIBUDEVZERO_VERSION)
 LIBUDEVZERO_PREFIX := $(PREFIX)/libudev-zero
 
 # --------------------------------------------------------------------
-# config variable| module targets
-FEATURES += LIB_AX25|ax25-lib
-FEATURES += AX25_TOOLS|ax25-tools
-FEATURES += AX25_APPS|ax25-apps
-FEATURES += DIREWOLF|direwolf
+PKG_FEATURES += LIB_AX25|ax25-lib
+PKG_FEATURES += AX25_TOOLS|ax25-tools
+PKG_FEATURES += AX25_APPS|ax25-apps
+PKG_FEATURES += DIREWOLF|direwolf
 
-BINMAP += AX25_TOOLS_NETROMD|$(AX25_TOOLS_PREFIX)/usr/sbin/netromd
-BINMAP += AX25_TOOLS_KISS|$(AX25_TOOLS_PREFIX)/usr/sbin/kissattach
-BINMAP += AX25_TOOLS_KISS|$(AX25_TOOLS_PREFIX)/usr/sbin/kissparms
-BINMAP += AX25_APPS_CALL|$(AX25_APPS_PREFIX)/usr/bin/call
-BINMAP += AX25_APPS_MONITOR|$(AX25_APPS_PREFIX)/usr/sbin/ax25mond
-BINMAP += DIREWOLF|$(DIREWOLF_PREFIX)/usr/bin/direwolf
+PKG_BINS += AX25_TOOLS_NETROMD|$(AX25_TOOLS_PREFIX)/usr/sbin/netromd
+PKG_BINS += AX25_TOOLS_KISS|$(AX25_TOOLS_PREFIX)/usr/sbin/kissattach
+PKG_BINS += AX25_TOOLS_KISS|$(AX25_TOOLS_PREFIX)/usr/sbin/kissparms
+PKG_BINS += AX25_APPS_CALL|$(AX25_APPS_PREFIX)/usr/bin/call
+PKG_BINS += AX25_APPS_MONITOR|$(AX25_APPS_PREFIX)/usr/sbin/ax25mond
+PKG_BINS += DIREWOLF|$(DIREWOLF_PREFIX)/usr/bin/direwolf
 
 # --------------------------------------------------------------------
 
+DISTRO_MODLISTS :=
+BUILD_PKGS  :=
+RUNTIME_BINS :=
+
 bar := |
 
-define _split
-$(word $(1),$(subst $(bar), ,$(2)))
-endef
-
-DISTRO_MODLISTS :=
-BUILD_PKGS :=
-DIREWOLF_BINS :=
-AX25_TOOLS_BINS :=
-AX25_APPS_BINS:=
-
-define ProcessFeature
-$(if $(CONFIG_$(call _split,1,$(1))),\
-  $(eval BUILD_PKGS += $(call _split,2,$(1))))
-endef
+_split = $(word $(1),$(subst $(bar), ,$(2)))
 
 define ProcessKernelModules
 $(if $(CONFIG_$(call _split,1,$(1))),\
   $(eval DISTRO_MODLISTS += $(call _split,2,$(1))))
 endef
 
-define ProcessBin
-$(eval __flag := $(call _split,1,$(1)))
-$(eval __path := $(call _split,2,$(1)))
-$(if $(filter y,$(CONFIG_$(__flag))), \
-  $(if $(filter AX25_TOOLS_%,$(__flag)), \
-       $(eval AX25_TOOLS_BINS += $(__path)), \
-       $(if $(filter AX25_APPS_%,$(__flag)), \
-            $(eval AX25_APPS_BINS += $(__path)), \
-            $(eval DIREWOLF_BINS += $(__path)))))
+define ProcessFeature
+$(if $(CONFIG_$(call _split,1,$(1))),\
+     $(eval BUILD_PKGS += $(call _split,2,$(1))))
 endef
 
-$(foreach f,$(FEATURES),$(call ProcessFeature,$(f)))
-$(foreach b,$(BINMAP)  ,$(call ProcessBin,$(b)))
+define ProcessBin
+$(if $(CONFIG_$(call _split,1,$(1))),\
+     $(eval RUNTIME_BINS += $(call _split,2,$(1))))
+endef
 
 # --------------------------------------------------------------------
 
@@ -138,7 +127,14 @@ MODMAP += NET|modules/lib.modlist
 MODMAP += SOUND|modules/sound.modlist
 MODMAP += SOUND|modules/lib.modlist
 
-$(foreach f,$(MODMAP),$(call ProcessKernelModules,$(f)))
+# --------------------------------------------------------------------
+
+$(foreach m,$(MODMAP),		$(call ProcessKernelModules,$(m)))
+$(foreach f,$(PKG_FEATURES),$(call ProcessFeature,$f))
+$(foreach b,$(PKG_BINS)      ,$(call ProcessBin,$b))
+
+BUILD_PKGS   := $(sort $(BUILD_PKGS))
+RUNTIME_BINS := $(sort $(RUNTIME_BINS))
 
 MODSRC := $(BUILD)
 MODDST := $(INITROOT)/lib/modules/$(KERNEL_VERSION)
@@ -175,9 +171,9 @@ endif
 
 $(INITROOT)/init.cpio: create-initfs-modules create-initfs-symlinks extras
 	@mkdir -p $(INITROOT)/usr/bin
-	@for f in $(DIREWOLF_BINS) $(AX25_TOOLS_BINS) $(AX25_APPS_BINS); do \
+	@for f in $(RUNTIME_BINS); do \
 		cp $$f $(INITROOT)/usr/bin/; \
-	done
+	done;
 	find $(INITROOT) -type f -perm /a+x -print0 | \
 	xargs -0 file -i | awk -F: '/application\/x-executable/{print $$1}' | \
 	xargs -r strip --strip-all
@@ -188,11 +184,9 @@ $(INITROOT)/init.cpio: create-initfs-modules create-initfs-symlinks extras
 extras: $(BUILD_PKGS)
 
 dbg-vars:
-	@echo "BUILD_PKGS  = $(BUILD_PKGS)"
-	@echo "DIREWOLF_BINS = $(DIREWOLF_BINS)"
-	@echo "AX25_TOOLS_BINS = $(AX25_TOOLS_BINS)"
-	@echo "AX25_APPS_BINS  = $(AX25_APPS_BINS)"
 	@echo "DISTRO_MODLISTS  = $(DISTRO_MODLISTS)"
+	@echo "BUILD_PKGS  = $(BUILD_PKGS)"
+	@echo "DIREWOLF_BINS = $(RUNTIME_BINS)"
 
 # --------------------------------------------------------------------
 
@@ -210,14 +204,23 @@ $(KERNEL_SRC)/.prepared:
 	tar -xf $(SOURCES)/$(KERNEL_TARBALL) -C $(SOURCES)
 	@touch $@
 
-$(KERNEL_BUILD)/arch/x86/boot/bzImage: modules/base/kernel.config $(KERNEL_SRC)/.prepared
+$(KERNEL_BUILD)/.configured: $(KERNEL_SRC)/.prepared modules/base/kernel.config
 	@mkdir -p $(KERNEL_BUILD)
 	$(MAKE) -C $(KERNEL_SRC) mrproper
 	cp modules/base/kernel.config $(KERNEL_BUILD)/.config
 	$(MAKE) -C $(KERNEL_SRC) O=$(KERNEL_BUILD) olddefconfig
+	@touch $@
+
+$(KERNEL_BUILD)/arch/x86/boot/bzImage: $(KERNEL_BUILD)/.configured
 	$(MAKE) -C $(KERNEL_SRC) O=$(KERNEL_BUILD) bzImage modules
+
+$(LINUX_HEADERS_DIR)/.installed: $(KERNEL_BUILD)/.configured
+	@mkdir -p $(LINUX_HEADERS_DIR)
 	$(MAKE) -C $(KERNEL_SRC) O=$(KERNEL_BUILD) \
 	        INSTALL_HDR_PATH=$(LINUX_HEADERS_DIR) headers_install
+	@touch $@
+
+kernel-headers: $(LINUX_HEADERS_DIR)/.installed
 
 # --------------------------------------------------------------------
 
@@ -254,7 +257,7 @@ $(AX25_APPS_SRC)/.prepared:
 	git clone --depth 1 $(AX25_APPS_REPO) $(AX25_APPS_SRC) || true
 	@touch $@
 
-ax25-lib: $(LIB_AX25_SRC)/.prepared | kernel
+ax25-lib: $(LIB_AX25_SRC)/.prepared | kernel-headers
 	@mkdir -p $(LIB_AX25_PREFIX)
 	cd $(LIB_AX25_SRC) && autoreconf -fi
 	cd $(LIB_AX25_SRC) && \
@@ -289,12 +292,14 @@ $(NCURSES_SRC)/.prepared:
 	curl -L $(NCURSES_URL) | tar xz -C $(SOURCES)
 	@touch $@
 
-ncurses: $(NCURSES_LIB)
-$(NCURSES_LIB): $(NCURSES_SRC)/.prepared
-	cd $(NCURSES_SRC) && make distclean || true
+$(NCURSES_PREFIX)/.installed: $(NCURSES_SRC)/.prepared
+#	cd $(NCURSES_SRC) && make distclean || true
 	cd $(NCURSES_SRC) && ./configure --prefix=/usr --enable-widec --enable-static --disable-shared --with-normal --without-debug
 	cd $(NCURSES_SRC) && make
 	cd $(NCURSES_SRC) && make install.libs install.includes DESTDIR=$(NCURSES_PREFIX)
+	@touch $@
+
+ncurses: $(NCURSES_PREFIX)/.installed
 
 #---------------------------------------------------------------------
 
@@ -341,7 +346,6 @@ alsa-lib: $(ALSA_SRC)/.prepared musl
 		--disable-shared \
 		--disable-python \
 		--disable-aload \
-		--disable-topology \
 		--disable-ucm \
 		--disable-mixer \
 		--disable-old-symbols \
@@ -357,7 +361,7 @@ $(MUSL_SRC)/.prepared:
 	tar -xzf $(SOURCES)/$(MUSL_TARBALL) -C $(SOURCES);
 	@touch $@
 
-musl: $(MUSL_SRC)/.prepared | kernel
+musl: $(MUSL_SRC)/.prepared | kernel-headers
 	cd $(MUSL_SRC) && make distclean || true
 	cd $(MUSL_SRC) && CFLAGS="-Os -I$(LINUX_HEADERS_DIR)/include" ./configure --prefix=$(MUSL_PREFIX)
 	cd $(MUSL_SRC) && make
