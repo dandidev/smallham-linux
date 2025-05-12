@@ -11,4 +11,8 @@ kernel/drivers/virtio/virtio.ko
 kernel/drivers/virtio/virtio_input.ko
 kernel/drivers/virtio/virtio_ring.ko
 kernel/drivers/virtio/virtio_pci_modern_dev.ko
-
+kernel/crypto/crc32c_generic.ko
+kernel/crypto/crypto_algapi.ko
+kernel/crypto/crypto_hash.ko
+kernel/crypto/crypto.ko
+kernel/lib/crypto/libcryptoutils.ko
