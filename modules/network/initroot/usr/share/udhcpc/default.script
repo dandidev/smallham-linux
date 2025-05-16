@@ -1,0 +1,22 @@
+#!/bin/sh
+[ -z "$1" ] && echo "Error: should be called from udhcpc" && exit 1
+
+#echo "udhcpc action: $1"
+#echo "interface: $interface"
+#echo "ip: $ip"
+#echo "router: $router"
+#echo "dns: $dns"
+
+case "$1" in
+    deconfig)
+        ip addr flush dev $interface
+        ;;
+
+    renew|bound)
+        ip addr add $ip/$mask dev $interface
+        ip route add default via $router
+        if [ -n "$dns" ]; then
+            echo "nameserver $dns" > /etc/resolv.conf
+        fi
+        ;;
+esac

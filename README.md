@@ -138,6 +138,38 @@ qemu-system-x86_64 -m 40 \
 
 ### How to
 
+#### Create virtbr0 bridge to qemu network
+```shell
+ip link add name virbr0 type bridge
+ip addr add 192.168.122.1/24 dev virbr0
+ip link set virbr0 up
+#ip addr show virbr0
+```
+##### DHCP dnsmasq configuration
+```shell
+# vim /etc/dnsmasq.conf
+port=5353
+interface=virbr0
+bind-interfaces
+listen-address=192.168.122.1
+dhcp-range=192.168.122.100,192.168.122.150,12h
+dhcp-option=3,192.168.122.1
+dhcp-option=6,8.8.8.8,8.8.4.4
+```
+##### Iptables
+```shell
+iptables -A INPUT -i virbr0 -j ACCEPT
+iptables -A OUTPUT -o virbr0 -j ACCEPT
+
+iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+iptables -A FORWARD -i virbr0 -o ${interface} -j ACCEPT
+iptables -t nat -A POSTROUTING -o ${interface} -j MASQUERADE
+```
+##### Forward enable
+```shell
+echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward
+```
+
 #### Direwolf
 - Configuration
 ```shell
