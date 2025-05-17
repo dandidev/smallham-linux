@@ -58,4 +58,8 @@ config DIREWOLF
     depends on SOUND
     depends on NET
 
+config ALSA_UTILS_APLAY
+    bool "aplay"
+    depends on SOUND
+
 endmenu
