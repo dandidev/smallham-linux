@@ -15,8 +15,11 @@ ALSA_UTILS_URL      := https://www.alsa-project.org/files/pub/utils/$(ALSA_UTILS
 ALSA_UTILS_SRC      := $(SOURCES)/alsa-utils-$(ALSA_UTILS_VERSION)
 ALSA_UTILS_PREFIX   := $(BUILD)/alsa-utils
 
-PKG_FEATURES += ALSA_UTILS_APLAY|alsa-utils
-PKG_BINS += ALSA_UTILS_APLAY|$(ALSA_UTILS_PREFIX)/usr/bin/aplay
+#----------------|-KCONFIG VAR-----|GOAL NAME---------
+PKG_FEATURES 	+= ALSA_UTILS_APLAY|alsa-utils
+
+#----------------|-KCONFIG VAR-----|BINARYs PATH-----------------------
+PKG_BINS 		+= ALSA_UTILS_APLAY|$(ALSA_UTILS_PREFIX)/usr/bin/aplay
 
 # ---------------------------------------------------------------
 $(ALSA_UTILS_SRC)/.prepared:
