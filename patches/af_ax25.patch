@@ -1,0 +1,52 @@
+--- linux-6.6.30/net/ax25/af_ax25.c
++++ linux-6.6.30/net/ax25/af_ax25.c
+@@ -44,6 +44,7 @@
+ #include <net/tcp_states.h>
+ #include <net/ip.h>
+ #include <net/arp.h>
++#include <net/rtnetlink.h>
+ 
+ 
+ 
+@@ -58,6 +59,26 @@
+ 	ax25_cb_put(sk_to_ax25(sk));
+ }
+ 
++static int ax25_fill_link_info(struct sk_buff *skb, const struct net_device *dev) {
++    struct ax25_dev *ax25 = ax25_dev_ax25dev((struct net_device *)dev);
++
++    if (!ax25)
++        return 0;
++
++    char callbuf[11] = {};
++    ax2asc(callbuf, (ax25_address *)ax25->dev->dev_addr);
++    printk(KERN_INFO "AX.25 device '%s' callsign: %s\n", dev->name, callbuf);
++
++    return nla_put(skb, IFLA_AX25_CALLSIGN, AX25_ADDR_LEN, ax25->dev->dev_addr);
++}
++
++struct rtnl_link_ops ax25_link_ops = {
++    .kind       = "ax25",
++    .priv_size  = sizeof(struct ax25_dev),
++    .fill_info  = ax25_fill_link_info,
++};
++EXPORT_SYMBOL(ax25_link_ops);
++
+ /*
+  *	Socket removal during an interrupt is now safe.
+  */
+@@ -2046,6 +2068,7 @@
+ 	sock_register(&ax25_family_ops);
+ 	dev_add_pack(&ax25_packet_type);
+ 	register_netdevice_notifier(&ax25_dev_notifier);
++	rtnl_link_register(&ax25_link_ops);
+ 
+ 	proc_create_seq("ax25_route", 0444, init_net.proc_net, &ax25_rt_seqops);
+ 	proc_create_seq("ax25", 0444, init_net.proc_net, &ax25_info_seqops);
+@@ -2069,6 +2092,7 @@
+ 	remove_proc_entry("ax25_calls", init_net.proc_net);
+ 
+ 	unregister_netdevice_notifier(&ax25_dev_notifier);
++	rtnl_link_unregister(&ax25_link_ops);
+ 
+ 	dev_remove_pack(&ax25_packet_type);

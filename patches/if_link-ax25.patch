@@ -1,0 +1,14 @@
+--- linux-6.6.30/include/uapi/linux/if_link.h
++++ linux-6.6.30/include/uapi/linux/if_link.h
+@@ -1398,4 +1398,11 @@
+ 
+ #define IFLA_DSA_MAX	(__IFLA_DSA_MAX - 1)
+ 
++enum {
++    IFLA_AX25_UNSPEC,
++    IFLA_AX25_CALLSIGN,
++    __IFLA_AX25_MAX
++};
++#define IFLA_AX25_MAX (__IFLA_AX25_MAX - 1)
++
+ #endif /* _UAPI_LINUX_IF_LINK_H */

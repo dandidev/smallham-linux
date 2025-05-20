@@ -1,0 +1,10 @@
+--- linux-6.6.30/drivers/net/hamradio/mkiss.c
++++ linux-6.6.30/drivers/net/hamradio/mkiss.c
+@@ -646,6 +646,7 @@
+ 	dev->tx_queue_len    = 10;
+ 	dev->header_ops      = &ax25_header_ops;
+ 	dev->netdev_ops	     = &ax_netdev_ops;
++	dev->rtnl_link_ops 	 = &ax25_link_ops;
+ 
+ 
+ 	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
