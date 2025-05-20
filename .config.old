@@ -7,7 +7,8 @@
 # Module selection
 #
 CONFIG_HAM=y
-# CONFIG_FS is not set
+CONFIG_FS=y
+# CONFIG_OVERLAY_FS is not set
 CONFIG_NET=y
 CONFIG_USB=y
 # CONFIG_USB_STORAGE is not set
@@ -16,12 +17,11 @@ CONFIG_SOUND=y
 #
 # Extras
 #
-<<<<<<< Updated upstream
-# CONFIG_AX25_TOOLS is not set
-# CONFIG_DIREWOLF is not set
-CONFIG_APLAY=y
-=======
-# CONFIG_AX25_TOOLS is not set
-# CONFIG_DIREWOLF is not set
+CONFIG_AX25_TOOLS=y
+CONFIG_AX25_TOOLS_NETROMD=y
+CONFIG_AX25_TOOLS_KISS=y
+CONFIG_AX25_APPS=y
+CONFIG_AX25_APPS_CALL=y
+CONFIG_AX25_APPS_MONITOR=y
+CONFIG_DIREWOLF=y
 CONFIG_ALSA_UTILS_APLAY=y
->>>>>>> Stashed changes

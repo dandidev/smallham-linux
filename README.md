@@ -143,6 +143,7 @@ qemu-system-x86_64 -m 40 \
 ip link add name virbr0 type bridge
 ip addr add 192.168.122.1/24 dev virbr0
 ip link set virbr0 up
+ethtool -K virbr0 tx off rx off
 #ip addr show virbr0
 ```
 ##### DHCP dnsmasq configuration

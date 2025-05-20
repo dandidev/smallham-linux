@@ -49,8 +49,12 @@ config AX25_APPS
         bool "Call (call)"
         depends on AX25_APPS
 
-    config AX25_APPS_MONITOR
-        bool "Monitor (ax25mond)"
+    config AX25_APPS_LISTEN
+        bool "Listen (listen)"
+        depends on AX25_APPS
+
+    config AX25_APPS_IPD
+        bool "IP daemon (ax25ipd)"
         depends on AX25_APPS
 
 config DIREWOLF

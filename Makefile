@@ -86,7 +86,8 @@ PKG_BINS += AX25_TOOLS_NETROMD|$(AX25_TOOLS_PREFIX)/usr/sbin/netromd
 PKG_BINS += AX25_TOOLS_KISS|$(AX25_TOOLS_PREFIX)/usr/sbin/kissattach
 PKG_BINS += AX25_TOOLS_KISS|$(AX25_TOOLS_PREFIX)/usr/sbin/kissparms
 PKG_BINS += AX25_APPS_CALL|$(AX25_APPS_PREFIX)/usr/bin/call
-PKG_BINS += AX25_APPS_MONITOR|$(AX25_APPS_PREFIX)/usr/sbin/ax25mond
+PKG_BINS += AX25_APPS_LISTEN|$(AX25_APPS_PREFIX)/usr/bin/listen
+PKG_BINS += AX25_APPS_IPD|$(AX25_APPS_PREFIX)/usr/sbin/ax25ipd
 PKG_BINS += DIREWOLF|$(DIREWOLF_PREFIX)/usr/bin/direwolf
 
 # --------------------------------------------------------------------
