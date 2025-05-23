@@ -182,6 +182,36 @@ $(INITROOT)/init.cpio: create-initfs-modules create-initfs-symlinks extras
 
 #---------------------------------------------------------------------
 
+PHONY: build-fs-init build-initroot initcpio
+
+FS_INIT_SRC := $(ROOT)/init
+FS_INIT_PREFIX := $(BUILD)/initroot
+FS_INIT_CC := $(MUSL_PATH)/bin/musl-gcc
+FS_INIT_CFLAGS := -Os -static -I$(LINUX_HEADERS_DIR)/include
+
+$(FS_INIT_PREFIX)/init_fs: musl
+
+build-fs-init:
+	@mkdir -p $(FS_INIT_PREFIX)
+	$(FS_INIT_CC) $(FS_INIT_CFLAGS) $(FS_INIT_SRC)/fs_init.c -o $(FS_INIT_PREFIX)/init
+
+build-initroot: build-fs-init
+	dd if=/dev/zero of=$(BUILD)/initroot/rw_layer.img bs=1M count=10
+	mkfs.ext4 $(BUILD)/initroot/rw_layer.img
+
+initcpio: build-initroot
+	cd $(BUILD)/initroot && \
+	find . | cpio -o -H newc --quiet > $(BUILD)/init.cpio
+
+build-squashfs-symlinks: busybox
+	cd $(BUILD)/rootfs/bin && ln -sf bin/init ../init && \
+	for c in $$(./busybox --list); do ln -sf busybox $$c; done
+
+build-squash-fs: build-squashfs-symlinks kernel initcpio
+	rsync -a $(ROOT)/rootfs $(BUILD)
+	mksquashfs $(BUILD)/rootfs $(BUILD)/initramfs.img -comp xz -Xbcj x86
+#---------------------------------------------------------------------
+
 extras: $(BUILD_PKGS)
 
 dbg-vars:
@@ -225,7 +255,7 @@ kernel-headers: $(LINUX_HEADERS_DIR)/.installed
 
 # --------------------------------------------------------------------
 
-busybox: $(INITROOT)/bin/busybox
+busybox: $(BUILD)/rootfs/bin/busybox
 
 $(BUSYBOX_SRC)/.prepared:
 	@mkdir -p $(SOURCES)
@@ -239,8 +269,8 @@ $(BUSYBOX_BUILD)/busybox: modules/base/busybox.config $(BUSYBOX_SRC)/.prepared
 	$(MAKE) -C $(BUSYBOX_SRC) O=$(BUSYBOX_BUILD) oldconfig
 	$(MAKE) -C $(BUSYBOX_SRC) O=$(BUSYBOX_BUILD)
 
-$(INITROOT)/bin/busybox: $(BUSYBOX_BUILD)/busybox
-	@mkdir -p $(INITROOT)/bin
+$(BUILD)/rootfs/bin/busybox: $(BUSYBOX_BUILD)/busybox
+	@mkdir -p $(BUILD)/rootfs/bin
 	cp $< $@
 	chmod +x $@
 

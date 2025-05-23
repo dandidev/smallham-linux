@@ -40,6 +40,10 @@ config AX25_TOOLS
     config AX25_TOOLS_KISS
         bool "Kiss (kissattach kissparms)"
         depends on AX25_TOOLS
+    
+    config AX25_DEFAULT_CONFIG
+        bool "Generate AX.25 default config (/usr/etc/ax25/axports)"
+        depends on AX25_TOOLS
 
 config AX25_APPS
     bool "AX.25 Applications (e.g. listen, beacon)"
@@ -61,6 +65,10 @@ config DIREWOLF
     bool "Direwolf"
     depends on SOUND
     depends on NET
+
+    config DIREWOLF_DEFAULT_CONFIG
+        bool "Generate default config (/etc/direwolf.conf)"
+        depends on DIREWOLF
 
 config ALSA_UTILS_APLAY
     bool "aplay"
