@@ -52,6 +52,31 @@ char* get_cmdline_arg(const char* key) {
     return NULL;
 }
 
+int setup_loop_device(const char *loopdev, const char *imgpath) {
+    int img_fd = open(imgpath, O_RDWR);
+    if (img_fd < 0) {
+        perror("open image file");
+        return -1;
+    }
+
+    int loop_fd = open(loopdev, O_RDWR);
+    if (loop_fd < 0) {
+        perror("open loop device");
+        close(img_fd);
+        return -1;
+    }
+
+    if (ioctl(loop_fd, LOOP_SET_FD, img_fd) < 0) {
+        perror("ioctl LOOP_SET_FD failed");
+        close(img_fd);
+        close(loop_fd);
+        return -1;
+    }
+
+    close(img_fd);
+    return loop_fd;  // caller close
+}
+
 int main(int argc, char *argv[]) {
     printf("Run fs_init\n");
 
@@ -69,31 +94,13 @@ int main(int argc, char *argv[]) {
     printf("devtmpfs mounted on /dev\n");
 
 
-    mkdir("/ro_root", 0755);
-    mkdir("/mnt_overlay", 0755);
-    mkdir("/mnt", 0755);
-
-    int loop_fd = open("/dev/loop0", O_RDWR);
+    int loop_fd = setup_loop_device("/dev/loop0", "/rw_layer.img");
     if (loop_fd < 0) {
-        perror("Failed to open /dev/loop0");
         return 1;
     }
+    close(loop_fd);
 
-    int img_fd = open("/rw_layer.img", O_RDWR);
-    if (img_fd < 0) {
-        perror("Failed to open /rw_layer.img");
-        close(loop_fd);
-        return 1;
-    }
-
-    if (ioctl(loop_fd, LOOP_SET_FD, img_fd) < 0) {
-        perror("ioctl LOOP_SET_FD failed");
-        close(img_fd);
-        close(loop_fd);
-        return 1;
-    }
-
-    close(img_fd);
+    mkdir("/mnt_overlay", 0755);
 
     if (mount("/dev/loop0", "/mnt_overlay", "ext4", 0, NULL) != 0) {
         perror("Failed to mount /dev/loop0 to /mnt_overlay");
@@ -103,8 +110,7 @@ int main(int argc, char *argv[]) {
     printf("/dev/loop0 mounted on /mnt_overlay\n");
     close(loop_fd);
 
-    mkdir("/mnt_overlay/rw_root", 0755);
-    mkdir("/mnt_overlay/work", 0755);
+    mkdir("/ro_root", 0755);
 
     char *squashfs_dev = get_cmdline_arg("squashfs_dev");
     if (!squashfs_dev) {
@@ -123,6 +129,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    mkdir("/mnt_overlay/rw_root", 0755);
+    mkdir("/mnt_overlay/work", 0755);
     mkdir("/overlay_root", 0755);
     printf("/overlay_root created\n");
 
@@ -135,8 +143,7 @@ int main(int argc, char *argv[]) {
     }
     printf("OverlayFS mounted on /\n");
 
-    list_directory_contents("/");
-    list_directory_contents("/overlay_root");
+    //list_directory_contents("/");
 
     chdir("/overlay_root");
     chroot(".");
