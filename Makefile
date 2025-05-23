@@ -196,8 +196,9 @@ build-fs-init:
 	$(FS_INIT_CC) $(FS_INIT_CFLAGS) $(FS_INIT_SRC)/fs_init.c -o $(FS_INIT_PREFIX)/init
 
 build-initroot: build-fs-init
-	dd if=/dev/zero of=$(BUILD)/initroot/rw_layer.img bs=1M count=10
-	mkfs.ext4 $(BUILD)/initroot/rw_layer.img
+	dd if=/dev/zero of=$(BUILD)/initroot/rw_layer.img bs=1M count=2
+	mkfs.ext2 $(BUILD)/initroot/rw_layer.img
+#	mkfs.ext4 $(BUILD)/initroot/rw_layer.img
 
 initcpio: build-initroot
 	cd $(BUILD)/initroot && \

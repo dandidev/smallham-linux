@@ -100,9 +100,12 @@ int main(int argc, char *argv[]) {
     }
     close(loop_fd);
 
+    //unlink("/rw_layer.img");
+
     mkdir("/mnt_overlay", 0755);
 
-    if (mount("/dev/loop0", "/mnt_overlay", "ext4", 0, NULL) != 0) {
+    //if (mount("/dev/loop0", "/mnt_overlay", "ext4", 0, NULL) != 0) {
+    if (mount("/dev/loop0", "/mnt_overlay", "ext2", MS_NOATIME | MS_NOSUID | MS_NODEV, NULL)) {
         perror("Failed to mount /dev/loop0 to /mnt_overlay");
         close(loop_fd);
         return 1;
@@ -145,10 +148,30 @@ int main(int argc, char *argv[]) {
 
     //list_directory_contents("/");
 
-    chdir("/overlay_root");
-    chroot(".");
+    // chdir("/overlay_root");
+    // chroot(".");
 
-    execve("/bin/init", (char *[]){"/bin/init", NULL}, NULL);
-    perror("execve failed");
+    // execve("/bin/init", (char *[]){"/bin/init", NULL}, NULL);
+    // perror("execve failed");
+
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+    open("/dev/null", O_RDONLY);  // stdin
+    open("/dev/null", O_WRONLY);  // stdout
+    open("/dev/null", O_WRONLY);  // stderr
+
+
+    int ret = execve("/overlay_root/bin/switch_root", (char *[]){
+        "switch_root",             // argv[0] — kötelező!
+        "/overlay_root",           // new_root
+        "/bin/init",               // új root alatt relatív út
+        NULL
+    }, NULL);
+    if (ret < 0) {
+        perror("switch_root failed");
+        exit(1); // elengedhetetlen
+    }
+
     return 1;
 }

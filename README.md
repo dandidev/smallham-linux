@@ -87,53 +87,11 @@ make iso
 ### Run with Qemu
 - Run linux
 ```
-qemu-system-x86_64 -m 40 
-  -kernel build/current/kernel/arch/x86/boot/bzImage \
-  -initrd build/current/init.cpio \
-  -append notsc
-```
-- Run linux from ISO
-```
-qemu-system-x86_64 -m 40 \
-  -cdrom build/current/my-linux.iso \
-  -boot d
-```
-- Create HDD
-```
-qemu-img create -f raw hdd.img 10M
-```
-- Run linux from ISO with hdd
-```
-qemu-system-x86_64 -m 40 \
-  -cdrom build/current/my-linux.iso \
-  -drive file=hdd.img,if=virtio,format=raw \
-  -boot d
-```
-- Run linux from ISO with usb sound card
-```
-qemu-system-x86_64 -m 40 \
-  -cdrom build/current/my-linux.iso \
-  -drive file=hdd.img,if=virtio,format=raw \
-  -device qemu-xhci \
-  -device usb-host,vendorid=0x08bb,productid=0x2902 \
-  -boot d 
-```
-- Run linux from ISO with network
-```
-qemu-system-x86_64 -m 40 \
-  -cdrom build/current/my-linux.iso \
-  -netdev user,id=mynet0 \
-  -device virtio-net-pci,netdev=mynet0 \
-  -boot d
-```
-- Run linux from ISO with network and hdd
-```
-qemu-system-x86_64 -m 40 \
-  -cdrom build/current/my-linux.iso \
-  -netdev user,id=mynet0 \
-  -device virtio-net-pci,netdev=mynet0 \
-  -drive file=hdd.img,if=virtio,format=raw \
-  -boot d
+qemu-system-x86_64 -m 35 \
+  -kernel build/kernel/arch/x86/boot/bzImage \
+  -initrd build/init.cpio \
+  -drive file=build/initramfs.img,format=raw,if=virtio \
+  -append "notsc squashfs_dev=/dev/vda"
 ```
 
 ### How to
