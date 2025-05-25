@@ -89,7 +89,7 @@ make iso
 ```
 qemu-system-x86_64 -m 35 \
   -kernel build/kernel/arch/x86/boot/bzImage \
-  -initrd build/init.cpio \
+  -initrd build/initramfs.cpio \
   -drive file=build/initramfs.img,format=raw,if=virtio \
   -append "notsc squashfs_dev=/dev/vda"
 ```

@@ -191,10 +191,10 @@ $(INITROOT)/init.cpio: create-initfs-modules create-initfs-symlinks extras
 
 #---------------------------------------------------------------------
 
-PHONY: fs-init rootfs initcpio
+PHONY: fs-init rootfs initramfs
 
-FS_INIT_SRC := $(ROOT)/init
-FS_INIT_PREFIX := $(BUILD)/initroot
+FS_INIT_SRC := $(ROOT)/fs_init
+FS_INIT_PREFIX := $(BUILD)/initramfs
 FS_INIT_CC := $(MUSL_PATH)/bin/musl-gcc
 FS_INIT_CFLAGS := -Os -static -I$(LINUX_HEADERS_DIR)/include
 
@@ -204,9 +204,9 @@ fs-init:
 	@mkdir -p $(FS_INIT_PREFIX)
 	$(FS_INIT_CC) $(FS_INIT_CFLAGS) $(FS_INIT_SRC)/fs_init.c -o $(FS_INIT_PREFIX)/init
 
-initcpio: fs-init
-	cd $(BUILD)/initroot && \
-	find . | cpio -o -H newc --quiet > $(BUILD)/init.cpio
+initramfs: fs-init
+	cd $(BUILD)/initramfs && \
+	find . | cpio -o -H newc --quiet > $(BUILD)/initramfs.cpio
 
 rootfs: busybox
 	rsync -a $(ROOT)/rootfs $(BUILD)
@@ -215,7 +215,7 @@ rootfs: busybox
 
 disks: $(IMG)
 
-$(IMG): rootfs initcpio
+$(IMG): rootfs initramfs
 	dd if=/dev/zero of=$(IMG) bs=1M count=$(DISK_SIZE_MB)
 
 	echo "label: dos" > partitions.txt
