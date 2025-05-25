@@ -91,6 +91,15 @@ PKG_BINS += AX25_APPS_IPD|$(AX25_APPS_PREFIX)/usr/sbin/ax25ipd
 PKG_BINS += DIREWOLF|$(DIREWOLF_PREFIX)/usr/bin/direwolf
 
 # --------------------------------------------------------------------
+LOOP := $(shell sudo losetup --show -fP $(IMG))
+
+DISK_SIZE_MB := 8
+SQUASHFS_SIZE_MB := 6
+
+IMG := $(ROOT)/disk.img
+SQUASHFS_IMG := $(ROOT)/squashfs.img
+ROOTFS_DIR := $(BUILD)/rootfs
+# --------------------------------------------------------------------
 
 DISTRO_MODLISTS :=
 BUILD_PKGS  :=
@@ -130,9 +139,9 @@ MODMAP += SOUND|modules/lib.modlist
 
 # --------------------------------------------------------------------
 
-$(foreach m,$(MODMAP),		$(call ProcessKernelModules,$(m)))
-$(foreach f,$(PKG_FEATURES),$(call ProcessFeature,$f))
-$(foreach b,$(PKG_BINS)      ,$(call ProcessBin,$b))
+$(foreach m,$(MODMAP), $(call ProcessKernelModules,$(m)))
+$(foreach f,$(PKG_FEATURES), $(call ProcessFeature,$f))
+$(foreach b,$(PKG_BINS), $(call ProcessBin,$b))
 
 BUILD_PKGS   := $(sort $(BUILD_PKGS))
 RUNTIME_BINS := $(sort $(RUNTIME_BINS))
@@ -182,7 +191,7 @@ $(INITROOT)/init.cpio: create-initfs-modules create-initfs-symlinks extras
 
 #---------------------------------------------------------------------
 
-PHONY: build-fs-init build-initroot initcpio
+PHONY: fs-init rootfs initcpio
 
 FS_INIT_SRC := $(ROOT)/init
 FS_INIT_PREFIX := $(BUILD)/initroot
@@ -191,26 +200,40 @@ FS_INIT_CFLAGS := -Os -static -I$(LINUX_HEADERS_DIR)/include
 
 $(FS_INIT_PREFIX)/init_fs: musl
 
-build-fs-init:
+fs-init:
 	@mkdir -p $(FS_INIT_PREFIX)
 	$(FS_INIT_CC) $(FS_INIT_CFLAGS) $(FS_INIT_SRC)/fs_init.c -o $(FS_INIT_PREFIX)/init
 
-build-initroot: build-fs-init
-	dd if=/dev/zero of=$(BUILD)/initroot/rw_layer.img bs=1M count=2
-	mkfs.ext2 $(BUILD)/initroot/rw_layer.img
-#	mkfs.ext4 $(BUILD)/initroot/rw_layer.img
-
-initcpio: build-initroot
+initcpio: fs-init
 	cd $(BUILD)/initroot && \
 	find . | cpio -o -H newc --quiet > $(BUILD)/init.cpio
 
-build-squashfs-symlinks: busybox
-	cd $(BUILD)/rootfs/bin && ln -sf bin/init ../init && \
+rootfs: busybox
+	rsync -a $(ROOT)/rootfs $(BUILD)
+	cd $(ROOTFS_DIR)/bin && \
 	for c in $$(./busybox --list); do ln -sf busybox $$c; done
 
-build-squash-fs: build-squashfs-symlinks kernel initcpio
-	rsync -a $(ROOT)/rootfs $(BUILD)
-	mksquashfs $(BUILD)/rootfs $(BUILD)/initramfs.img -comp xz -Xbcj x86
+disks: $(IMG)
+
+$(IMG): rootfs initcpio
+	dd if=/dev/zero of=$(IMG) bs=1M count=$(DISK_SIZE_MB)
+
+	echo "label: dos" > partitions.txt
+	echo "label-id: 0x12345678" >> partitions.txt
+	echo "unit: sectors" >> partitions.txt
+	echo "$(IMG)1 : start=2048, size=$(shell echo $$(($(SQUASHFS_SIZE_MB)*2048))), type=83" >> partitions.txt
+	echo "$(IMG)2 : start=$(shell echo $$(($(SQUASHFS_SIZE_MB)*2048 + 2048))), type=83" >> partitions.txt
+	sfdisk $(IMG) < partitions.txt
+#	rm partitions.txt
+
+	LOOP=$$(sudo losetup --show -fP $(IMG)); \
+	echo "Loop device: $$LOOP"; \
+	mksquashfs $(ROOTFS_DIR) $(SQUASHFS_IMG) -noappend -comp xz -b 256k; \
+	sudo dd if=$(SQUASHFS_IMG) of=$${LOOP}p1 bs=1M conv=fsync status=none; \
+	sudo mkfs.ext2 -q $${LOOP}p2; \
+	sudo losetup -d $$LOOP; \
+	rm $(SQUASHFS_IMG)
+
 #---------------------------------------------------------------------
 
 extras: $(BUILD_PKGS)

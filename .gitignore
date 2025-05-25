@@ -19,3 +19,5 @@ mylinux.iso
 *.img
 *.tar.*
 .vscode
+
+partitions.txt

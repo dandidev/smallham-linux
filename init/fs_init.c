@@ -52,31 +52,6 @@ char* get_cmdline_arg(const char* key) {
     return NULL;
 }
 
-int setup_loop_device(const char *loopdev, const char *imgpath) {
-    int img_fd = open(imgpath, O_RDWR);
-    if (img_fd < 0) {
-        perror("open image file");
-        return -1;
-    }
-
-    int loop_fd = open(loopdev, O_RDWR);
-    if (loop_fd < 0) {
-        perror("open loop device");
-        close(img_fd);
-        return -1;
-    }
-
-    if (ioctl(loop_fd, LOOP_SET_FD, img_fd) < 0) {
-        perror("ioctl LOOP_SET_FD failed");
-        close(img_fd);
-        close(loop_fd);
-        return -1;
-    }
-
-    close(img_fd);
-    return loop_fd;  // caller close
-}
-
 int main(int argc, char *argv[]) {
     printf("Run fs_init\n");
 
@@ -85,6 +60,7 @@ int main(int argc, char *argv[]) {
         perror("mount /proc failed");
         return 1;
     }
+    printf("procfs mounted on /proc\n");
     
     mkdir("/dev", 0755);
     if (mount("devtmpfs", "/dev", "devtmpfs", 0, NULL) != 0) {
@@ -93,47 +69,32 @@ int main(int argc, char *argv[]) {
     }
     printf("devtmpfs mounted on /dev\n");
 
-
-    int loop_fd = setup_loop_device("/dev/loop0", "/rw_layer.img");
-    if (loop_fd < 0) {
-        return 1;
-    }
-    close(loop_fd);
-
-    //unlink("/rw_layer.img");
-
-    mkdir("/mnt_overlay", 0755);
-
-    //if (mount("/dev/loop0", "/mnt_overlay", "ext4", 0, NULL) != 0) {
-    if (mount("/dev/loop0", "/mnt_overlay", "ext2", MS_NOATIME | MS_NOSUID | MS_NODEV, NULL)) {
-        perror("Failed to mount /dev/loop0 to /mnt_overlay");
-        close(loop_fd);
-        return 1;
-    }
-    printf("/dev/loop0 mounted on /mnt_overlay\n");
-    close(loop_fd);
-
-    mkdir("/ro_root", 0755);
-
+    
     char *squashfs_dev = get_cmdline_arg("squashfs_dev");
     if (!squashfs_dev) {
         fprintf(stderr, "Missing squashfs_dev= in kernel cmdline\n");
         return 1;
     }
+    mkdir("/ro_root", 0755);
+    if (mount(squashfs_dev, "/ro_root", "squashfs", MS_RDONLY, NULL) != 0) {
+        perror("SquashFS mount to /ro_root failed");
+        return 1;
+    }
 
-    if (squashfs_dev) {
-        printf("Mounting SquashFS from %s to /ro_root\n", squashfs_dev);
-        if (mount(squashfs_dev, "/ro_root", "squashfs", MS_RDONLY, NULL) != 0) {
-            perror("SquashFS mount to /ro_root failed");
-            return 1;
-        }
-    } else {
-        fprintf(stderr, "Could not find a SquashFS device.\n");
+    char *rw_dev = get_cmdline_arg("rw_dev");
+    if (!rw_dev) {
+        fprintf(stderr, "Missing rw_dev= in kernel cmdline\n");
+        return 1;
+    }
+    mkdir("/mnt_overlay", 0755);
+    if (mount(rw_dev, "/mnt_overlay", "ext2", 0, NULL)) {
+        perror("Root FS mount to /mnt_overlay failed");
         return 1;
     }
 
     mkdir("/mnt_overlay/rw_root", 0755);
     mkdir("/mnt_overlay/work", 0755);
+
     mkdir("/overlay_root", 0755);
     printf("/overlay_root created\n");
 
@@ -163,14 +124,14 @@ int main(int argc, char *argv[]) {
 
 
     int ret = execve("/overlay_root/bin/switch_root", (char *[]){
-        "switch_root",             // argv[0] — kötelező!
-        "/overlay_root",           // new_root
-        "/bin/init",               // új root alatt relatív út
+        "switch_root",
+        "/overlay_root",
+        "/bin/init",
         NULL
     }, NULL);
     if (ret < 0) {
         perror("switch_root failed");
-        exit(1); // elengedhetetlen
+        exit(1);
     }
 
     return 1;
