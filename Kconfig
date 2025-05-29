@@ -5,13 +5,6 @@ menu "Module selection"
 config HAM
     bool "HAM Radio drivers"
 
-config FS
-    bool "Filesystem support"
-
-config OVERLAY_FS
-    bool "OverlayFS support"
-    depends on FS
-
 config NET
     bool "Network drivers (VirtIO) support"
 

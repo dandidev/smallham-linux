@@ -1,9 +1,0 @@
-::sysinit:/bin/mount -t proc proc /proc
-::sysinit:/bin/mount -t sysfs sysfs /sys
-::sysinit:/bin/mount -t devtmpfs devtmpfs /dev
-
-::sysinit:/etc/init.d/rcS
-
-::respawn:/bin/getty -n -l /bin/sh 115200 tty1
-::ctrlaltdel:/bin/reboot -f
-::shutdown:/bin/umount -a -r

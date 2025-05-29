@@ -8,9 +8,17 @@ BUILD := $(ROOT)/build
 PREFIX := $(ROOT)/toolchain
 INITROOT := $(BUILD)/initroot
 
-CPIO := $(BUILD)/init.cpio
+DISK_SIZE_MB := 8
+SQUASHFS_SIZE_MB := 6
+
+IMG := $(ROOT)/disk.img
+SQUASHFS_IMG := $(ROOT)/squashfs.img
+SQUASHFS_DIR := $(BUILD)/rootfs
+
 ISO := $(BUILD)/iso
 ISOIMG := $(BUILD)/my-linux.iso
+
+KCONFIG_CONFIG=configs/.config make menuconfig
 
 # --------------------------------------------------------------------
 
@@ -38,12 +46,12 @@ LIB_AX25_PREFIX := $(PREFIX)/lib-ax25
 AX25_TOOLS_REPO := https://github.com/dandidev/ax25-tools.git
 AX25_TOOLS_SRC := $(SOURCES)/ax25-tools
 AX25_TOOLS_PREFIX := $(BUILD)/ax25-tools
-AX25_TOOLS_INITROOT := $(INITROOT)/usr/bin
+AX25_TOOLS_INITROOT := $(SQUASHFS_DIR)/usr/bin
 
 AX25_APPS_REPO := https://github.com/dandidev/ax25-apps.git
 AX25_APPS_SRC := $(SOURCES)/ax25-apps
 AX25_APPS_PREFIX := $(BUILD)/ax25-apps
-AX25_APPS_INITROOT := $(INITROOT)/usr/bin
+AX25_APPS_INITROOT := $(SQUASHFS_DIR)/usr/bin
 
 NCURSES_VERSION := 6.4
 NCURSES_TARBALL := ncurses-$(NCURSES_VERSION).tar.gz
@@ -91,14 +99,7 @@ PKG_BINS += AX25_APPS_IPD|$(AX25_APPS_PREFIX)/usr/sbin/ax25ipd
 PKG_BINS += DIREWOLF|$(DIREWOLF_PREFIX)/usr/bin/direwolf
 
 # --------------------------------------------------------------------
-LOOP := $(shell sudo losetup --show -fP $(IMG))
 
-DISK_SIZE_MB := 8
-SQUASHFS_SIZE_MB := 6
-
-IMG := $(ROOT)/disk.img
-SQUASHFS_IMG := $(ROOT)/squashfs.img
-ROOTFS_DIR := $(BUILD)/rootfs
 # --------------------------------------------------------------------
 
 DISTRO_MODLISTS :=
@@ -130,8 +131,6 @@ MODMAP += HAM|modules/ham.modlist
 MODMAP += HAM|modules/lib.modlist
 MODMAP += USB|modules/usb.modlist
 MODMAP += USB_STORAGE|modules/usb-storage.modlist
-MODMAP += FS|modules/fs.modlist
-MODMAP += OVERLAY_FS|modules/overlay-fs.modlist
 MODMAP += NET|modules/network.modlist
 MODMAP += NET|modules/lib.modlist
 MODMAP += SOUND|modules/sound.modlist
@@ -147,7 +146,7 @@ BUILD_PKGS   := $(sort $(BUILD_PKGS))
 RUNTIME_BINS := $(sort $(RUNTIME_BINS))
 
 MODSRC := $(BUILD)
-MODDST := $(INITROOT)/lib/modules/$(KERNEL_VERSION)
+MODDST := $(SQUASHFS_DIR)/lib/modules/$(KERNEL_VERSION)
 
 # --------------------------------------------------------------------
 
@@ -157,37 +156,10 @@ MODDST := $(INITROOT)/lib/modules/$(KERNEL_VERSION)
 
 distro: $(INITROOT)/init.cpio
 
+
+
 clean-distro:
-	rm -rf $(INITROOT)
-
-create-initfs-symlinks: busybox
-	cd $(INITROOT)/bin && ln -sf bin/init ../init && \
-	for c in $$(./busybox --list); do ln -sf busybox $$c; done
-
-create-initfs-modules: kernel
-	rsync -r modules/base/initroot/ $(INITROOT)/
-ifeq ($(CONFIG_NET),y)
-	rsync -r modules/network/initroot/ $(INITROOT)/
-endif
-	@mkdir -p $(MODDST)
-	@for list in $(DISTRO_MODLISTS); do \
-	  while read -r mod; do \
-	    [ -z "$$mod" ] && continue; \
-	    src="$(MODSRC)/$$mod"; dst="$(MODDST)/$$mod"; \
-	    if [ -f "$$src" ]; then mkdir -p "$$(dirname "$$dst")"; cp "$$src" "$$dst"; fi; \
-	  done < "$$list"; \
-	done
-	depmod -b $(INITROOT) $(KERNEL_VERSION)
-
-$(INITROOT)/init.cpio: create-initfs-modules create-initfs-symlinks extras
-	@mkdir -p $(INITROOT)/usr/bin
-	@for f in $(RUNTIME_BINS); do \
-		cp $$f $(INITROOT)/usr/bin/; \
-	done;
-	find $(INITROOT) -type f -perm /a+x -print0 | \
-	xargs -0 file -i | awk -F: '/application\/x-executable/{print $$1}' | \
-	xargs -r strip --strip-all
-	cd $(INITROOT) && find . | cpio -o -H newc --quiet > $(BUILD)/init.cpio
+	rm -rf $(SQUASHFS_DIR)
 
 #---------------------------------------------------------------------
 
@@ -208,10 +180,33 @@ initramfs: fs-init
 	cd $(BUILD)/initramfs && \
 	find . | cpio -o -H newc --quiet > $(BUILD)/initramfs.cpio
 
-rootfs: busybox
-	rsync -a $(ROOT)/rootfs $(BUILD)
-	cd $(ROOTFS_DIR)/bin && \
+rootfs: busybox kmodules extras
+	mkdir -p $(SQUASHFS_DIR)
+	rsync -r $(ROOT)/rootfs/base/ $(SQUASHFS_DIR)/
+ifeq ($(CONFIG_NET),y)
+	rsync -a $(ROOT)/rootfs/network/ $(SQUASHFS_DIR)/
+endif
+	cd $(SQUASHFS_DIR)/bin && \
 	for c in $$(./busybox --list); do ln -sf busybox $$c; done
+
+	@mkdir -p $(SQUASHFS_DIR)/usr/bin
+	@for f in $(RUNTIME_BINS); do \
+		cp $$f $(SQUASHFS_DIR)/usr/bin/; \
+	done;
+	find $(SQUASHFS_DIR) -type f -perm /a+x -print0 | \
+	xargs -0 file -i | awk -F: '/application\/x-executable/{print $$1}' | \
+	xargs -r strip --strip-all
+
+kmodules:
+	@mkdir -p $(MODDST)
+	@for list in $(DISTRO_MODLISTS); do \
+	  while read -r mod; do \
+	    [ -z "$$mod" ] && continue; \
+	    src="$(MODSRC)/$$mod"; dst="$(MODDST)/$$mod"; \
+	    if [ -f "$$src" ]; then mkdir -p "$$(dirname "$$dst")"; cp "$$src" "$$dst"; fi; \
+	  done < "$$list"; \
+	done
+	depmod -b $(SQUASHFS_DIR) $(KERNEL_VERSION)
 
 disks: $(IMG)
 
@@ -228,7 +223,7 @@ $(IMG): rootfs initramfs
 
 	LOOP=$$(sudo losetup --show -fP $(IMG)); \
 	echo "Loop device: $$LOOP"; \
-	mksquashfs $(ROOTFS_DIR) $(SQUASHFS_IMG) -noappend -comp xz -b 256k; \
+	mksquashfs $(SQUASHFS_DIR) $(SQUASHFS_IMG) -noappend -comp xz -b 256k; \
 	sudo dd if=$(SQUASHFS_IMG) of=$${LOOP}p1 bs=1M conv=fsync status=none; \
 	sudo mkfs.ext2 -q $${LOOP}p2; \
 	sudo losetup -d $$LOOP; \
@@ -259,10 +254,10 @@ $(KERNEL_SRC)/.prepared:
 	tar -xf $(SOURCES)/$(KERNEL_TARBALL) -C $(SOURCES)
 	@touch $@
 
-$(KERNEL_BUILD)/.configured: $(KERNEL_SRC)/.prepared modules/base/kernel.config
+$(KERNEL_BUILD)/.configured: $(KERNEL_SRC)/.prepared configs/kernel.config
 	@mkdir -p $(KERNEL_BUILD)
 	$(MAKE) -C $(KERNEL_SRC) mrproper
-	cp modules/base/kernel.config $(KERNEL_BUILD)/.config
+	cp configs/kernel.config $(KERNEL_BUILD)/.config
 	$(MAKE) -C $(KERNEL_SRC) O=$(KERNEL_BUILD) olddefconfig
 	@touch $@
 
@@ -287,9 +282,9 @@ $(BUSYBOX_SRC)/.prepared:
 	tar -xf $(SOURCES)/$(BUSYBOX_TARBALL) -C $(SOURCES)
 	@touch $@
 
-$(BUSYBOX_BUILD)/busybox: modules/base/busybox.config $(BUSYBOX_SRC)/.prepared
+$(BUSYBOX_BUILD)/busybox: configs/busybox.config $(BUSYBOX_SRC)/.prepared
 	@mkdir -p $(BUSYBOX_BUILD)
-	cp modules/base/busybox.config $(BUSYBOX_BUILD)/.config
+	cp configs/busybox.config $(BUSYBOX_BUILD)/.config
 	$(MAKE) -C $(BUSYBOX_SRC) O=$(BUSYBOX_BUILD) oldconfig
 	$(MAKE) -C $(BUSYBOX_SRC) O=$(BUSYBOX_BUILD)
 
@@ -383,9 +378,9 @@ direwolf: direwolf-patch libudev-zero alsa-lib
 	cd $(DIREWOLF_SRC) && make
 	@mkdir -p $(DIREWOLF_PREFIX)
 	cd $(DIREWOLF_SRC) && make DESTDIR=$(DIREWOLF_PREFIX) install
-	strip $(DIREWOLF_PREFIX)/usr/bin/direwolf
-	@mkdir -p $(INITROOT)/usr/bin
-	cp $(DIREWOLF_PREFIX)/usr/bin/direwolf $(INITROOT)/usr/bin
+#	strip $(DIREWOLF_PREFIX)/usr/bin/direwolf
+#	@mkdir -p $(INITROOT)/usr/bin
+#	cp $(DIREWOLF_PREFIX)/usr/bin/direwolf $(INITROOT)/usr/bin
 
 #---------------------------------------------------------------------
 
