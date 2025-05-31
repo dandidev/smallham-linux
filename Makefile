@@ -8,6 +8,8 @@ BUILD := $(ROOT)/build
 PREFIX := $(ROOT)/toolchain
 INITROOT := $(BUILD)/initroot
 
+# --------------------------------------------------------------------
+
 DISK_SIZE_MB := 8
 SQUASHFS_SIZE_MB := 6
 
@@ -17,8 +19,6 @@ SQUASHFS_DIR := $(BUILD)/rootfs
 
 ISO := $(BUILD)/iso
 ISOIMG := $(BUILD)/my-linux.iso
-
-KCONFIG_CONFIG=configs/.config make menuconfig
 
 # --------------------------------------------------------------------
 
@@ -51,9 +51,9 @@ DISTRO_MODLISTS :=
 BUILD_PKGS  :=
 RUNTIME_BINS :=
 
-bar := |
+_delim := |
 
-_split = $(word $(1),$(subst $(bar), ,$(2)))
+_split = $(word $(1),$(subst $(_delim), ,$(2)))
 
 define ProcessKernelModules
 $(if $(CONFIG_$(call _split,1,$(1))),\
@@ -101,14 +101,12 @@ MODDST := $(SQUASHFS_DIR)/lib/modules/$(KERNEL_VERSION)
 
 distro: $(INITROOT)/init.cpio
 
-
-
 clean-distro:
 	rm -rf $(SQUASHFS_DIR)
 
 #---------------------------------------------------------------------
 
-PHONY: fs-init rootfs initramfs
+.PHONY: fs-init rootfs initramfs
 
 FS_INIT_SRC := $(ROOT)/fs_init
 FS_INIT_PREFIX := $(BUILD)/initramfs
