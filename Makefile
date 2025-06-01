@@ -102,7 +102,7 @@ MODDST := $(SQUASHFS_DIR)/lib/modules/$(KERNEL_VERSION)
         ncurses direwolf direwolf-patch \
         clean-distro dbg-vars
 
-distro: $(INITROOT)/init.cpio
+distro: $(IMG)
 
 clean-distro:
 	rm -rf $(SQUASHFS_DIR)
@@ -156,8 +156,6 @@ kmodules: kernel
 	  done < "$$list"; \
 	done
 	depmod -b $(SQUASHFS_DIR) $(KERNEL_VERSION)
-
-disks: $(IMG)
 
 $(IMG): rootfs initramfs
 	dd if=/dev/zero of=$(IMG) bs=1M count=$(DISK_SIZE_MB)
@@ -257,14 +255,23 @@ run: distro
 	    -kernel $(KERNEL_BUILD)/arch/x86/boot/bzImage \
 	    -initrd $(CPIO) -append "notsc"
 
-iso: distro
+DISK_VDMK := disk.vmdk
+
+$(DISK_VDMK):
+	qemu-img convert -f raw -O vmdk disk.img disk.vmdk
+
+iso: distro $(DISK_VDMK)
+	@mkdir -p $(ISO)/isolinux/
 	cp $(KERNEL_BUILD)/arch/x86/boot/bzImage $(ISO)
-	cp $(CPIO) $(ISO)/init.cpio
+	cp $(BUILD)/initramfs.cpio $(ISO)/initramfs.cpio
 	cp /usr/lib/syslinux/bios/isolinux.bin $(ISO)/isolinux/
 	cp /usr/lib/syslinux/bios/ldlinux.c32 $(ISO)/isolinux/
+	cp $(ROOT)/iso/isolinux/isolinux.cfg $(ISO)/isolinux/
 	genisoimage -o $(ISOIMG) -b isolinux/isolinux.bin \
 	  -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 \
 	  -boot-info-table -iso-level 3 -quiet $(ISO)
+
+
 
 clean: alsa-lib-clean alsa-utils-clean musl-clean ncurses-clean direwolf-clean libudev-zero-clean ax25-apps-clean ax25-tools-clean lib-ax25-clean
 	rm -rf $(LINUX_HEADERS_DIR) $(LINUX_HEADERS_INSTALLED)

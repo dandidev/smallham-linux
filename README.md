@@ -87,11 +87,23 @@ make iso
 ### Run with Qemu
 - Run linux
 ```
-qemu-system-x86_64 -m 35 \
+qemu-system-x86_64 -m 30 \
   -kernel build/kernel/arch/x86/boot/bzImage \
   -initrd build/initramfs.cpio \
-  -drive file=build/initramfs.img,format=raw,if=virtio \
-  -append "notsc squashfs_dev=/dev/vda"
+  -drive file=disk.img,format=raw,if=virtio \
+  -append "notsc squashfs_dev=/dev/vda1 rw_dev=/dev/vda2"
+```
+
+- Run linux with network
+```
+qemu-system-x86_64 -m 30 \
+  -kernel build/kernel/arch/x86/boot/bzImage \
+  -initrd build/initramfs.cpio \
+  -drive file=disk.img,format=raw,if=virtio \
+  -append "notsc squashfs_dev=/dev/vda1 rw_dev=/dev/vda2" \
+  -device qemu-xhci -device usb-host,vendorid=0x08bb,productid=0x2902 \
+  -netdev bridge,id=net0,br=virbr0 \
+  -device virtio-net-pci,netdev=net0,mac=52:54:00:12:34:56
 ```
 
 ### How to
