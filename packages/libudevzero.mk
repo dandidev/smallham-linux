@@ -6,18 +6,26 @@ LIBUDEVZERO_TARBALL := libudev-zero-$(LIBUDEVZERO_VERSION).tar.gz
 LIBUDEVZERO_URL := https://github.com/illiliti/libudev-zero/archive/refs/tags/$(LIBUDEVZERO_VERSION).tar.gz
 LIBUDEVZERO_SRC := $(SOURCES)/libudev-zero-$(LIBUDEVZERO_VERSION)
 LIBUDEVZERO_PREFIX := $(PREFIX)/libudev-zero
+LIBUDEVZERO_PREPARED := $(STAMP)/libudevzero.prepared
+LIBUDEVZERO_INSTALLED := $(STAMP)/libudevzero.installed
 
 LIBUDEVZERO_LDFLAGS := "-s"
 
 #---------------------------------------------------------------------
 
-$(LIBUDEVZERO_SRC)/.prepared:
+$(LIBUDEVZERO_PREPARED):
 	curl -L $(LIBUDEVZERO_URL) -o $(SOURCES)/$(LIBUDEVZERO_TARBALL);
 	tar xzf $(SOURCES)/$(LIBUDEVZERO_TARBALL) -C $(SOURCES);
 	@touch $@
 
-libudev-zero: $(LIBUDEVZERO_SRC)/.prepared
+$(LIBUDEVZERO_INSTALLED): $(LIBUDEVZERO_PREPARED)
 	cd $(LIBUDEVZERO_SRC) && LDFLAGS=$(LIBUDEVZERO_LDFLAGS) make
 	cd $(LIBUDEVZERO_SRC) && make PREFIX=$(LIBUDEVZERO_PREFIX)/usr install
+	@touch $@
+
+libudev-zero: $(LIBUDEVZERO_INSTALLED)
+
+libudev-zero-clean:
+	rm -rf $(LIBUDEVZERO_SRC) $(SOURCES)/$(LIBUDEVZERO_TARBALL) $(LIBUDEVZERO_PREFIX) $(LIBUDEVZERO_PREPARED) $(LIBUDEVZERO_INSTALLED)
 
 endif

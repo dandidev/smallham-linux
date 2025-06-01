@@ -6,8 +6,13 @@ ROOT := $(CURDIR)
 SOURCES := $(ROOT)/sources
 BUILD := $(ROOT)/build
 PREFIX := $(ROOT)/toolchain
+STAMP := $(BUILD)/stamps
 INITROOT := $(BUILD)/initroot
 
+$(shell mkdir -p $(SOURCES))
+$(shell mkdir -p $(BUILD))
+$(shell mkdir -p $(PREFIX))
+$(shell mkdir -p $(STAMP))
 # --------------------------------------------------------------------
 
 DISK_SIZE_MB := 8
@@ -27,19 +32,17 @@ KERNEL_TARBALL := linux-$(KERNEL_VERSION).tar.xz
 KERNEL_URL := https://cdn.kernel.org/pub/linux/kernel/v6.x/$(KERNEL_TARBALL)
 KERNEL_SRC := $(SOURCES)/linux-$(KERNEL_VERSION)
 KERNEL_BUILD := $(BUILD)/kernel
+KERNEL_PREPARED := $(STAMP)/kernel.prepared
+KERNEL_CONFIGURED := $(STAMP)/kernel.configured
+
 LINUX_HEADERS_DIR := $(PREFIX)/linux-headers
+LINUX_HEADERS_INSTALLED := $(STAMP)/linux-headers.installed
 
 BUSYBOX_VERSION := 1.37.0
 BUSYBOX_TARBALL := busybox-$(BUSYBOX_VERSION).tar.bz2
 BUSYBOX_URL := https://busybox.net/downloads/$(BUSYBOX_TARBALL)
 BUSYBOX_SRC := $(SOURCES)/busybox-$(BUSYBOX_VERSION)
 BUSYBOX_BUILD := $(BUILD)/busybox
-
-MUSL_VERSION := 1.2.4
-MUSL_TARBALL := musl-$(MUSL_VERSION).tar.gz
-MUSL_URL := https://musl.libc.org/releases/$(MUSL_TARBALL)
-MUSL_SRC := $(SOURCES)/musl-$(MUSL_VERSION)
-MUSL_PREFIX := $(PREFIX)/musl
 
 # --------------------------------------------------------------------
 
@@ -95,7 +98,7 @@ MODDST := $(SQUASHFS_DIR)/lib/modules/$(KERNEL_VERSION)
 
 # --------------------------------------------------------------------
 
-.PHONY: extras kernel busybox run clean distclean iso \
+.PHONY: extras kernel busybox run clean iso \
         ncurses direwolf direwolf-patch \
         clean-distro dbg-vars
 
@@ -110,12 +113,12 @@ clean-distro:
 
 FS_INIT_SRC := $(ROOT)/fs_init
 FS_INIT_PREFIX := $(BUILD)/initramfs
-FS_INIT_CC := $(MUSL_PATH)/bin/musl-gcc
+FS_INIT_CC := $(MUSL_CC)
 FS_INIT_CFLAGS := -Os -static -I$(LINUX_HEADERS_DIR)/include
 
 $(FS_INIT_PREFIX)/init_fs: musl
 
-fs-init:
+fs-init: musl
 	@mkdir -p $(FS_INIT_PREFIX)
 	$(FS_INIT_CC) $(FS_INIT_CFLAGS) $(FS_INIT_SRC)/fs_init.c -o $(FS_INIT_PREFIX)/init
 
@@ -125,6 +128,9 @@ initramfs: fs-init
 
 rootfs: busybox kmodules extras
 	mkdir -p $(SQUASHFS_DIR)
+	mkdir -p $(SQUASHFS_DIR)/dev
+	mkdir -p $(SQUASHFS_DIR)/sys
+	mkdir -p $(SQUASHFS_DIR)/proc
 	rsync -r $(ROOT)/rootfs/base/ $(SQUASHFS_DIR)/
 ifeq ($(CONFIG_NET),y)
 	rsync -a $(ROOT)/rootfs/network/ $(SQUASHFS_DIR)/
@@ -140,7 +146,7 @@ endif
 	xargs -0 file -i | awk -F: '/application\/x-executable/{print $$1}' | \
 	xargs -r strip --strip-all
 
-kmodules:
+kmodules: kernel
 	@mkdir -p $(MODDST)
 	@for list in $(DISTRO_MODLISTS); do \
 	  while read -r mod; do \
@@ -181,6 +187,11 @@ dbg-vars:
 	@echo "BUILD_PKGS  = $(BUILD_PKGS)"
 	@echo "RUNTIME_BINS = $(RUNTIME_BINS)"
 
+print-vars:
+	@echo "CFLAGS = $(CFLAGS)"
+	@echo "LDFLAGS = $(LDFLAGS)"
+	@echo "CPPFLAGS = $(CPPFLAGS)"
+	@echo "CC = $(CC)"
 # --------------------------------------------------------------------
 
 KCONF_BIN    := $(KERNEL_SRC)/scripts/kconfig/mconf
@@ -191,29 +202,29 @@ menuconfig:
 
 kernel: $(KERNEL_BUILD)/arch/x86/boot/bzImage
 
-$(KERNEL_SRC)/.prepared:
+$(KERNEL_PREPARED):
 	@mkdir -p $(SOURCES)
 	curl -L $(KERNEL_URL) -o $(SOURCES)/$(KERNEL_TARBALL)
 	tar -xf $(SOURCES)/$(KERNEL_TARBALL) -C $(SOURCES)
 	@touch $@
 
-$(KERNEL_BUILD)/.configured: $(KERNEL_SRC)/.prepared configs/kernel.config
+$(KERNEL_CONFIGURED): $(KERNEL_PREPARED) configs/kernel.config
 	@mkdir -p $(KERNEL_BUILD)
 	$(MAKE) -C $(KERNEL_SRC) mrproper
 	cp configs/kernel.config $(KERNEL_BUILD)/.config
 	$(MAKE) -C $(KERNEL_SRC) O=$(KERNEL_BUILD) olddefconfig
 	@touch $@
 
-$(KERNEL_BUILD)/arch/x86/boot/bzImage: $(KERNEL_BUILD)/.configured
+$(KERNEL_BUILD)/arch/x86/boot/bzImage: $(KERNEL_CONFIGURED)
 	$(MAKE) -C $(KERNEL_SRC) O=$(KERNEL_BUILD) bzImage modules
 
-$(LINUX_HEADERS_DIR)/.installed: $(KERNEL_BUILD)/.configured
+$(LINUX_HEADERS_INSTALLED): $(KERNEL_CONFIGURED)
 	@mkdir -p $(LINUX_HEADERS_DIR)
 	$(MAKE) -C $(KERNEL_SRC) O=$(KERNEL_BUILD) \
 	        INSTALL_HDR_PATH=$(LINUX_HEADERS_DIR) headers_install
 	@touch $@
 
-kernel-headers: $(LINUX_HEADERS_DIR)/.installed
+kernel-headers: $(LINUX_HEADERS_INSTALLED)
 
 # --------------------------------------------------------------------
 
@@ -225,32 +236,19 @@ $(BUSYBOX_SRC)/.prepared:
 	tar -xf $(SOURCES)/$(BUSYBOX_TARBALL) -C $(SOURCES)
 	@touch $@
 
-$(BUSYBOX_BUILD)/busybox: configs/busybox.config $(BUSYBOX_SRC)/.prepared
+$(BUSYBOX_BUILD)/busybox: $(ROOT)/configs/busybox.config $(BUSYBOX_SRC)/.prepared
 	@mkdir -p $(BUSYBOX_BUILD)
-	cp configs/busybox.config $(BUSYBOX_BUILD)/.config
+	@echo "LDFLAGS = $(LDFLAGS)"
+	cp $(ROOT)/configs/busybox.config $(BUSYBOX_BUILD)/.config
+	LDFLAGS= CFLAGS="-Os" \
 	$(MAKE) -C $(BUSYBOX_SRC) O=$(BUSYBOX_BUILD) oldconfig
+	LDFLAGS= CFLAGS="-Os" \
 	$(MAKE) -C $(BUSYBOX_SRC) O=$(BUSYBOX_BUILD)
 
 $(BUILD)/rootfs/bin/busybox: $(BUSYBOX_BUILD)/busybox
 	@mkdir -p $(BUILD)/rootfs/bin
 	cp $< $@
 	chmod +x $@
-
-#---------------------------------------------------------------------
-
-$(MUSL_SRC)/.prepared:
-	curl -L $(MUSL_URL) -o $(SOURCES)/$(MUSL_TARBALL);
-	tar -xzf $(SOURCES)/$(MUSL_TARBALL) -C $(SOURCES);
-	@touch $@
-
-musl: $(MUSL_SRC)/.prepared | kernel-headers
-	cd $(MUSL_SRC) && make distclean || true
-	cd $(MUSL_SRC) && CFLAGS="-Os -I$(LINUX_HEADERS_DIR)/include" ./configure --prefix=$(MUSL_PREFIX) --syslibdir=$(MUSL_PREFIX)/lib
-	cd $(MUSL_SRC) && make
-	cd $(MUSL_SRC) && make install
-
-export MUSL_PREFIX := $(MUSL_PREFIX)
-export MUSL_CC := $(MUSL_PREFIX)/bin/musl-gcc
 
 #---------------------------------------------------------------------
 
@@ -268,6 +266,8 @@ iso: distro
 	  -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 \
 	  -boot-info-table -iso-level 3 -quiet $(ISO)
 
-clean:
-	rm -rf $(BUILD)/*
-	rm -rf $(PREFIX)/*
+clean: alsa-lib-clean alsa-utils-clean musl-clean ncurses-clean direwolf-clean libudev-zero-clean ax25-apps-clean ax25-tools-clean lib-ax25-clean
+	rm -rf $(LINUX_HEADERS_DIR) $(LINUX_HEADERS_INSTALLED)
+	rm -rf $(KERNEL_SRC) $(SOURCES)/$(KERNEL_TARBALL) $(KERNEL_BUILD) $(KERNEL_PREPARED) $(KERNEL_CONFIGURED)
+	rm -rf $(BUSYBOX_SRC) $(SOURCES)/$(BUSYBOX_TARBALL) $(BUSYBOX_BUILD)
+	rm -rf $(BUILD)

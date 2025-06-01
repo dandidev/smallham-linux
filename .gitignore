@@ -2,14 +2,6 @@
 /sources
 /toolchain
 
-/cloned
-/initroot/bin/*
-/initroot/sbin/*
-/initroot/dev/*
-/initroot/init
-
-init.cpio
-
 bzImage
 isolinux.bin
 ldlinux.c32

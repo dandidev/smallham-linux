@@ -4,6 +4,8 @@ INCLUDED_AX25_TOOLS_MK := 1
 AX25_TOOLS_REPO := https://github.com/dandidev/ax25-tools.git
 AX25_TOOLS_SRC := $(SOURCES)/ax25-tools
 AX25_TOOLS_PREFIX := $(BUILD)/ax25-tools
+AX25_TOOLS_PREPARED := $(STAMP)/ax25-tools.prepared
+AX25_TOOLS_INSTALLED := $(STAMP)/ax25-tools.installed
 
 AX25_TOOLS_CPPFLAGS := "-I$(LIB_AX25_PREFIX)/usr/include" 
 AX25_TOOLS_LDFLAGS := "-L$(LIB_AX25_PREFIX)/usr/lib -static"
@@ -19,11 +21,11 @@ PKG_BINS += AX25_TOOLS_KISS|$(AX25_TOOLS_PREFIX)/usr/sbin/kissparms
 
 # --------------------------------------------------------------------
 
-$(AX25_TOOLS_SRC)/.prepared:
+$(AX25_TOOLS_PREPARED):
 	git clone --depth 1 $(AX25_TOOLS_REPO) $(AX25_TOOLS_SRC) || true
 	@touch $@
 
-ax25-tools: ax25-lib $(AX25_TOOLS_SRC)/.prepared | ncurses
+$(AX25_TOOLS_INSTALLED): lib-ax25 $(AX25_TOOLS_PREPARED) | ncurses
 	@mkdir -p $(AX25_TOOLS_PREFIX)
 	cd $(AX25_TOOLS_SRC) && libtoolize --force --copy && aclocal && autoheader && automake --add-missing && autoconf
 	cd $(AX25_TOOLS_SRC) && \
@@ -33,5 +35,11 @@ ax25-tools: ax25-lib $(AX25_TOOLS_SRC)/.prepared | ncurses
 		./configure --prefix=/usr --without-x
 	$(MAKE) -C $(AX25_TOOLS_SRC)
 	$(MAKE) -C $(AX25_TOOLS_SRC) DESTDIR=$(AX25_TOOLS_PREFIX) install
+	@touch $@
+
+ax25-tools: $(AX25_TOOLS_INSTALLED)
+
+ax25-tools-clean:
+	rm -rf $(AX25_TOOLS_SRC) $(AX25_TOOLS_PREFIX) $(AX25_TOOLS_PREPARED) $(AX25_TOOLS_INSTALLED)
 
 endif
