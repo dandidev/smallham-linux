@@ -4,6 +4,6 @@
 
 ::sysinit:/etc/init.d/rcS
 
-::respawn:/bin/getty -n -l /bin/sh 115200 tty1
+::respawn:/bin/getty -n -l /bin/custom-shell.sh 115200 tty1
 ::ctrlaltdel:/bin/reboot -f
 ::shutdown:/bin/umount -a -r
