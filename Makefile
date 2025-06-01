@@ -116,8 +116,6 @@ FS_INIT_PREFIX := $(BUILD)/initramfs
 FS_INIT_CC := $(MUSL_CC)
 FS_INIT_CFLAGS := -Os -static -I$(LINUX_HEADERS_DIR)/include
 
-$(FS_INIT_PREFIX)/init_fs: musl
-
 fs-init: musl
 	@mkdir -p $(FS_INIT_PREFIX)
 	$(FS_INIT_CC) $(FS_INIT_CFLAGS) $(FS_INIT_SRC)/fs_init.c -o $(FS_INIT_PREFIX)/init
@@ -271,7 +269,8 @@ iso: distro $(DISK_VDMK)
 	  -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 \
 	  -boot-info-table -iso-level 3 -quiet $(ISO)
 
-
+clean-iso:
+	rm -rf $(DISK_VDMK) $(ISO)
 
 clean: alsa-lib-clean alsa-utils-clean musl-clean ncurses-clean direwolf-clean libudev-zero-clean ax25-apps-clean ax25-tools-clean lib-ax25-clean
 	rm -rf $(LINUX_HEADERS_DIR) $(LINUX_HEADERS_INSTALLED)
