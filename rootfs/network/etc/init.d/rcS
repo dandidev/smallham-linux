@@ -1,8 +1,8 @@
 #!/bin/sh
 
-mkdir -p /var/log
-syslogd -O /var/log/messages
-klogd
+#mkdir -p /var/log
+#syslogd -O /var/log/messages
+#klogd
 
 KVER=$(uname -r)
 MODDIR="/lib/modules/$KVER"
