@@ -7,7 +7,7 @@ This project aims to create a minimal Linux system primarily for learning purpos
 - Build a custom init system and boot process
 - Integrate core utilities using BusyBox
 - Configure the distribution using Kconfig and Makefiles
-- Produce a bootable ISO image for QEMU/VirtualBox (VirtualBox is not recommended)
+- Produce a bootable ISO image for QEMU/VirtualBox
 - **Enable amateur radio control testing on minimal hardware**
 
 ## Amateur Radio Support
@@ -26,15 +26,6 @@ Available module options:
 
 - Enables support for AX.25, NetROM, ROSE, 6PACK, and other hamradio protocols.
 - Use case: Amateur radio communication, tower emulation setups.
-
-#### `FS` – Filesystem support
-- Enables ext4, jbd2, mbcache, nls_base, and block device drivers like virtio_blk.
-- Use case: Mounting storage, filesystem access.
-
-#### `OVERLAY_FS` – Overlay filesystem support
-- Enables overlayfs module for layered file access.
-- Depends on: FS must be enabled.
-- Use case: Writable layers over read-only rootfs, common in initramfs-based systems.
 
 #### `NET` – Network drivers (VirtIO) support
 - Enables virtio_net, net_failover, and related networking support.
@@ -216,17 +207,10 @@ https://bellard.org/tcc/
 
 
 # TODO's
-- BusyBox build only used package -ok, but not enought
-- Refactor HAM module into a selectable list format
 - Bootchart optimalization
-- init.cpio rename to initramfs.cpio
-- Create module to kiss package manager (kiss pm, certs, wget ssl) - depend tinygcc
 - Fix poweroff
 - Config module size optimalization
-- Extract module builds from the main Makefile into separate Makefiles
-- Makefile packages move into separate dependencies
 - USB modules->kernel/fs/nls/nls_base.ko->utf16s_to_utf8s() thinking
-- Refactor lib module in MODMAP
 - Testing all module
 - Testing direwolf communication
 - Testing netrom routing
