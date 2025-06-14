@@ -1,9 +1,5 @@
 #!/bin/sh
 
-#mkdir -p /var/log
-#syslogd -O /var/log/messages
-#klogd
-
 KVER=$(uname -r)
 MODDIR="/lib/modules/$KVER"
 
@@ -20,5 +16,7 @@ echo "Network init done"
 
 ifup -a
 echo "Network interfaces up"
+
+syslogd -C12 -n -S &
 
 echo "System initialization complete"

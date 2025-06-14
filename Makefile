@@ -230,15 +230,15 @@ $(BUSYBOX_SRC)/.prepared:
 	@mkdir -p $(SOURCES)
 	curl -L $(BUSYBOX_URL) -o $(SOURCES)/$(BUSYBOX_TARBALL)
 	tar -xf $(SOURCES)/$(BUSYBOX_TARBALL) -C $(SOURCES)
+	cd $(BUSYBOX_SRC)/scripts/kconfig/lxdialog && patch -p0 < $(abspath patches/busybox-lxdiagcheck.patch) || true
 	@touch $@
 
 $(BUSYBOX_BUILD)/busybox: $(ROOT)/configs/busybox.config $(BUSYBOX_SRC)/.prepared
 	@mkdir -p $(BUSYBOX_BUILD)
-	@echo "LDFLAGS = $(LDFLAGS)"
 	cp $(ROOT)/configs/busybox.config $(BUSYBOX_BUILD)/.config
-	LDFLAGS= CFLAGS="-Os" \
+	CFLAGS="-Os -flto" LDFLAGS="-static -flto" \
 	$(MAKE) -C $(BUSYBOX_SRC) O=$(BUSYBOX_BUILD) oldconfig
-	LDFLAGS= CFLAGS="-Os" \
+	CFLAGS="-Os -flto" LDFLAGS="-static -flto" \
 	$(MAKE) -C $(BUSYBOX_SRC) O=$(BUSYBOX_BUILD)
 
 $(BUILD)/rootfs/bin/busybox: $(BUSYBOX_BUILD)/busybox

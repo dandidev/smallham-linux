@@ -1,11 +1,5 @@
 #!/bin/sh
 
-#mkdir -p /var/log
-#syslogd -O /var/log/messages
-#klogd
-
-#syslogd -C16 -n
-
 KVER=$(uname -r)
 MODDIR="/lib/modules/$KVER"
 
@@ -15,5 +9,7 @@ while read mod; do
     echo "  + modprobe $name"
     modprobe "$name" 2>/dev/null || echo "Failed: $name"
 done
+
+syslogd -C12 -n -S &
 
 echo "System initialization complete"

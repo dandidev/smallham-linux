@@ -1,0 +1,34 @@
+--- check-lxdialog.sh.orig	2025-06-11 14:11:12.759730368 +0200
++++ check-lxdialog.sh	2025-06-11 14:12:18.176830261 +0200
+@@ -45,19 +45,18 @@
+ 
+ # Check if we can link to ncurses
+ check() {
+-        $cc -x c - -o $tmp 2>/dev/null <<'EOF'
+-#include CURSES_LOC
+-main() {}
+-EOF
+-	if [ $? != 0 ]; then
+-	    echo " *** Unable to find the ncurses libraries or the"       1>&2
+-	    echo " *** required header files."                            1>&2
+-	    echo " *** 'make menuconfig' requires the ncurses libraries." 1>&2
+-	    echo " *** "                                                  1>&2
+-	    echo " *** Install ncurses (ncurses-devel) and try again."    1>&2
+-	    echo " *** "                                                  1>&2
+-	    exit 1
+-	fi
++    echo '#include <ncurses.h>' > $tmp.c
++    echo 'int main() { return 0; }' >> $tmp.c
++    gcc -I/usr/include/ncursesw -L/usr/lib -lncursesw $tmp.c -o $tmp 2>/dev/null
++    if [ $? -ne 0 ]; then
++        echo " *** Unable to find the ncurses libraries or the"       1>&2
++        echo " *** required header files."                            1>&2
++        echo " *** 'make menuconfig' requires the ncurses libraries." 1>&2
++        echo " *** "                                                  1>&2
++        echo " *** Install ncurses and try again."                    1>&2
++        echo " *** "                                                  1>&2
++        exit 1
++    fi
+ }
+ 
+ usage() {
