@@ -1,0 +1,5 @@
+#!/bin/sh
+# Bring up interfaces from /etc/network/interfaces.
+
+touch /var/run/ifstate
+ifup -a && echo "Network interfaces up"

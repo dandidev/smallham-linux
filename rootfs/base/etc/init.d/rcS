@@ -1,15 +1,20 @@
 #!/bin/sh
+# System startup: load kernel modules, start syslog, run /etc/init.d/S??* scripts.
 
-KVER=$(uname -r)
-MODDIR="/lib/modules/$KVER"
+mkdir -p /var/run /var/log /tmp
 
-find "$MODDIR" -type f -name '*.ko' | \
-while read mod; do
-    name=$(basename "$mod" .ko)
-    echo "  + modprobe $name"
-    modprobe "$name" 2>/dev/null || echo "Failed: $name"
+MODDIR="/lib/modules/$(uname -r)"
+if [ -d "$MODDIR" ]; then
+    for mod in $(find "$MODDIR" -type f -name '*.ko'); do
+        name=$(basename "$mod" .ko)
+        modprobe "$name" 2>/dev/null || echo "rcS: failed to load module $name"
+    done
+fi
+
+syslogd -C12 -S
+
+for script in /etc/init.d/S[0-9][0-9]*; do
+    [ -x "$script" ] && "$script"
 done
-
-syslogd -C12 -n -S &
 
 echo "System initialization complete"

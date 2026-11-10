@@ -19,24 +19,32 @@ DISK_SIZE_MB := 8
 SQUASHFS_SIZE_MB := 6
 
 IMG := $(ROOT)/disk.img
-SQUASHFS_IMG := $(ROOT)/squashfs.img
+SQUASHFS_IMG := $(BUILD)/squashfs.img
+RW_IMG := $(BUILD)/rw.img
 SQUASHFS_DIR := $(BUILD)/rootfs
 
-ISO := $(BUILD)/iso
-ISOIMG := $(BUILD)/my-linux.iso
+# Partition layout (512 byte sectors)
+SQUASHFS_START := 2048
+SQUASHFS_SECTORS := $(shell echo $$(($(SQUASHFS_SIZE_MB) * 2048)))
+RW_START := $(shell echo $$(($(SQUASHFS_START) + $(SQUASHFS_SECTORS))))
+RW_SECTORS := $(shell echo $$(($(DISK_SIZE_MB) * 2048 - $(RW_START))))
+
+INITRAMFS := $(BUILD)/initramfs.cpio
+INITRAMFS_LIST := $(BUILD)/initramfs.list
+GEN_INIT_CPIO = $(KERNEL_BUILD)/usr/gen_init_cpio
 
 # --------------------------------------------------------------------
 
-KERNEL_VERSION := 6.6.30
+KERNEL_VERSION := 6.6.162
 KERNEL_TARBALL := linux-$(KERNEL_VERSION).tar.xz
 KERNEL_URL := https://cdn.kernel.org/pub/linux/kernel/v6.x/$(KERNEL_TARBALL)
 KERNEL_SRC := $(SOURCES)/linux-$(KERNEL_VERSION)
 KERNEL_BUILD := $(BUILD)/kernel
-KERNEL_PREPARED := $(STAMP)/kernel.prepared
-KERNEL_CONFIGURED := $(STAMP)/kernel.configured
+KERNEL_PREPARED := $(STAMP)/kernel-$(KERNEL_VERSION).prepared
+KERNEL_CONFIGURED := $(STAMP)/kernel-$(KERNEL_VERSION).configured
 
 LINUX_HEADERS_DIR := $(PREFIX)/linux-headers
-LINUX_HEADERS_INSTALLED := $(STAMP)/linux-headers.installed
+LINUX_HEADERS_INSTALLED := $(STAMP)/linux-headers-$(KERNEL_VERSION).installed
 
 BUSYBOX_VERSION := 1.37.0
 BUSYBOX_TARBALL := busybox-$(BUSYBOX_VERSION).tar.bz2
@@ -98,9 +106,9 @@ MODDST := $(SQUASHFS_DIR)/lib/modules/$(KERNEL_VERSION)
 
 # --------------------------------------------------------------------
 
-.PHONY: extras kernel busybox run clean iso \
-        ncurses direwolf direwolf-patch \
-        clean-distro dbg-vars
+.PHONY: distro extras kernel kernel-headers kmodules busybox run clean \
+        ncurses direwolf direwolf-patch menuconfig \
+        clean-distro dbg-vars print-vars
 
 distro: $(IMG)
 
@@ -120,9 +128,15 @@ fs-init: musl
 	@mkdir -p $(FS_INIT_PREFIX)
 	$(FS_INIT_CC) $(FS_INIT_CFLAGS) $(FS_INIT_SRC)/fs_init.c -o $(FS_INIT_PREFIX)/init
 
-initramfs: fs-init
-	cd $(BUILD)/initramfs && \
-	find . | cpio -o -H newc --quiet > $(BUILD)/initramfs.cpio
+# gen_init_cpio (built with the kernel) can create device nodes without root,
+# so the kernel finds /dev/console and the init's output is visible.
+initramfs: fs-init kernel
+	printf '%s\n' \
+	  'dir /dev 0755 0 0' \
+	  'nod /dev/console 0600 0 0 c 5 1' \
+	  'dir /proc 0555 0 0' \
+	  'file /init $(FS_INIT_PREFIX)/init 0755 0 0' > $(INITRAMFS_LIST)
+	$(GEN_INIT_CPIO) $(INITRAMFS_LIST) > $(INITRAMFS)
 
 rootfs: busybox kmodules extras
 	mkdir -p $(SQUASHFS_DIR)
@@ -155,24 +169,26 @@ kmodules: kernel
 	done
 	depmod -b $(SQUASHFS_DIR) $(KERNEL_VERSION)
 
+# Builds the disk image without root (no losetup/sudo):
+# partition table with sfdisk, filesystems built as files and dd'd in place.
+# WARNING: rebuilding the image wipes the writable (rw) partition.
 $(IMG): rootfs initramfs
-	dd if=/dev/zero of=$(IMG) bs=1M count=$(DISK_SIZE_MB)
-
-	echo "label: dos" > partitions.txt
-	echo "label-id: 0x12345678" >> partitions.txt
-	echo "unit: sectors" >> partitions.txt
-	echo "$(IMG)1 : start=2048, size=$(shell echo $$(($(SQUASHFS_SIZE_MB)*2048))), type=83" >> partitions.txt
-	echo "$(IMG)2 : start=$(shell echo $$(($(SQUASHFS_SIZE_MB)*2048 + 2048))), type=83" >> partitions.txt
-	sfdisk $(IMG) < partitions.txt
-#	rm partitions.txt
-
-	LOOP=$$(sudo losetup --show -fP $(IMG)); \
-	echo "Loop device: $$LOOP"; \
-	mksquashfs $(SQUASHFS_DIR) $(SQUASHFS_IMG) -noappend -comp xz -b 256k; \
-	sudo dd if=$(SQUASHFS_IMG) of=$${LOOP}p1 bs=1M conv=fsync status=none; \
-	sudo mkfs.ext2 -q $${LOOP}p2; \
-	sudo losetup -d $$LOOP; \
-	rm $(SQUASHFS_IMG)
+	rm -f $(IMG) $(SQUASHFS_IMG) $(RW_IMG)
+	mksquashfs $(SQUASHFS_DIR) $(SQUASHFS_IMG) -noappend -all-root -comp xz -b 256k -quiet
+	@size=$$(stat -c %s $(SQUASHFS_IMG)); max=$$(($(SQUASHFS_SECTORS) * 512)); \
+	if [ $$size -gt $$max ]; then \
+	  echo "ERROR: squashfs ($$size bytes) does not fit into $(SQUASHFS_SIZE_MB) MB partition"; exit 1; \
+	fi
+	truncate -s $(DISK_SIZE_MB)M $(IMG)
+	printf 'label: dos\nunit: sectors\nstart=%s, size=%s, type=83\nstart=%s, size=%s, type=83\n' \
+	  $(SQUASHFS_START) $(SQUASHFS_SECTORS) $(RW_START) $(RW_SECTORS) | sfdisk -q $(IMG)
+	dd if=$(SQUASHFS_IMG) of=$(IMG) bs=1M seek=$$(($(SQUASHFS_START) * 512)) \
+	  oflag=seek_bytes conv=notrunc status=none
+	truncate -s $$(($(RW_SECTORS) * 512)) $(RW_IMG)
+	mkfs.ext2 -q -F $(RW_IMG)
+	dd if=$(RW_IMG) of=$(IMG) bs=1M seek=$$(($(RW_START) * 512)) \
+	  oflag=seek_bytes conv=notrunc status=none
+	rm -f $(SQUASHFS_IMG) $(RW_IMG)
 
 #---------------------------------------------------------------------
 
@@ -214,9 +230,11 @@ $(KERNEL_CONFIGURED): $(KERNEL_PREPARED) configs/kernel.config
 $(KERNEL_BUILD)/arch/x86/boot/bzImage: $(KERNEL_CONFIGURED)
 	$(MAKE) -C $(KERNEL_SRC) O=$(KERNEL_BUILD) bzImage modules
 
+# Separate O= directory: headers_install must not run in $(KERNEL_BUILD)
+# in parallel with the kernel build (make -j).
 $(LINUX_HEADERS_INSTALLED): $(KERNEL_CONFIGURED)
 	@mkdir -p $(LINUX_HEADERS_DIR)
-	$(MAKE) -C $(KERNEL_SRC) O=$(KERNEL_BUILD) \
+	$(MAKE) -C $(KERNEL_SRC) O=$(BUILD)/kernel-headers ARCH=x86 \
 	        INSTALL_HDR_PATH=$(LINUX_HEADERS_DIR) headers_install
 	@touch $@
 
@@ -248,29 +266,23 @@ $(BUILD)/rootfs/bin/busybox: $(BUSYBOX_BUILD)/busybox
 
 #---------------------------------------------------------------------
 
-run: distro
-	qemu-system-x86_64 -m 40 \
+QEMU_MEM ?= 30
+QEMU_EXTRA ?=
+QEMU_NET :=
+ifeq ($(CONFIG_NET),y)
+QEMU_NET := -netdev user,id=net0 -device virtio-net-pci,netdev=net0
+endif
+
+# Does not rebuild an existing disk.img, so data on the rw partition survives.
+# -no-reboot: there is no ACPI, so 'reboot' is the way to exit QEMU.
+run:
+	@[ -f $(IMG) ] || $(MAKE) distro
+	qemu-system-x86_64 -m $(QEMU_MEM) -no-reboot \
 	    -kernel $(KERNEL_BUILD)/arch/x86/boot/bzImage \
-	    -initrd $(CPIO) -append "notsc"
-
-DISK_VDMK := disk.vmdk
-
-$(DISK_VDMK):
-	qemu-img convert -f raw -O vmdk disk.img disk.vmdk
-
-iso: distro $(DISK_VDMK)
-	@mkdir -p $(ISO)/isolinux/
-	cp $(KERNEL_BUILD)/arch/x86/boot/bzImage $(ISO)
-	cp $(BUILD)/initramfs.cpio $(ISO)/initramfs.cpio
-	cp /usr/lib/syslinux/bios/isolinux.bin $(ISO)/isolinux/
-	cp /usr/lib/syslinux/bios/ldlinux.c32 $(ISO)/isolinux/
-	cp $(ROOT)/iso/isolinux/isolinux.cfg $(ISO)/isolinux/
-	genisoimage -o $(ISOIMG) -b isolinux/isolinux.bin \
-	  -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 \
-	  -boot-info-table -iso-level 3 -quiet $(ISO)
-
-clean-iso:
-	rm -rf $(DISK_VDMK) $(ISO)
+	    -initrd $(INITRAMFS) \
+	    -drive file=$(IMG),format=raw,if=virtio \
+	    -append "notsc squashfs_dev=/dev/vda1 rw_dev=/dev/vda2" \
+	    $(QEMU_NET) $(QEMU_EXTRA)
 
 clean: alsa-lib-clean alsa-utils-clean musl-clean ncurses-clean direwolf-clean libudev-zero-clean ax25-apps-clean ax25-tools-clean lib-ax25-clean
 	rm -rf $(LINUX_HEADERS_DIR) $(LINUX_HEADERS_INSTALLED)

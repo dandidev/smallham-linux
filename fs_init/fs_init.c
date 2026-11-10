@@ -1,138 +1,131 @@
+/*
+ * fs_init - minimal initramfs /init
+ *
+ * Mounts a read-only squashfs root and a writable ext2 partition,
+ * combines them with overlayfs and switch_root's into /bin/init.
+ *
+ * Kernel cmdline parameters:
+ *   squashfs_dev=<dev>   read-only lower layer (e.g. /dev/vda1)
+ *   rw_dev=<dev>         writable upper layer, ext2 (e.g. /dev/vda2)
+ */
 #define _GNU_SOURCE
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <string.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
-#include <errno.h>
-#include <dirent.h>
-#include <string.h>
-#include <fcntl.h> 
-#include <sys/ioctl.h>
-#include <linux/loop.h>
-#include <fcntl.h>
+#include <unistd.h>
 
-void list_directory_contents(const char *path) {
-    DIR *d;
-    struct dirent *dir;
-    d = opendir(path);
-    if (d) {
-        printf("Contents of %s:\n", path);
-        while ((dir = readdir(d)) != NULL) {
-            printf("%s\n", dir->d_name);
-        }
-        closedir(d);
-    } else {
-        perror("Could not open directory");
-    }
+#define NEW_ROOT "/overlay_root"
+
+static char cmdline[1024];
+
+/* Open /dev/console as stdin/stdout/stderr (if not already open). */
+static void setup_console(void)
+{
+    int fd = open("/dev/console", O_RDWR | O_NOCTTY);
+    if (fd < 0)
+        return;
+    dup2(fd, STDIN_FILENO);
+    dup2(fd, STDOUT_FILENO);
+    dup2(fd, STDERR_FILENO);
+    if (fd > STDERR_FILENO)
+        close(fd);
 }
 
-char* get_cmdline_arg(const char* key) {
+/* Do not return: PID 1 exiting would panic and hide the message. */
+static void fatal(const char *msg)
+{
+    if (errno)
+        fprintf(stderr, "fs_init: %s: %s\n", msg, strerror(errno));
+    else
+        fprintf(stderr, "fs_init: %s\n", msg);
+    fprintf(stderr, "fs_init: boot halted\n");
+    for (;;)
+        pause();
+}
+
+static void read_cmdline(void)
+{
+    int fd = open("/proc/cmdline", O_RDONLY);
+    if (fd < 0)
+        fatal("cannot open /proc/cmdline");
+    ssize_t n = read(fd, cmdline, sizeof(cmdline) - 1);
+    close(fd);
+    if (n < 0)
+        fatal("cannot read /proc/cmdline");
+    cmdline[n] = '\0';
+}
+
+/* Return the value of a whole-word "key=value" token, or NULL. */
+static const char *get_cmdline_arg(const char *key)
+{
     static char value[128];
-    FILE *f = fopen("/proc/cmdline", "r");
-    if (!f) return NULL;
+    size_t klen = strlen(key);
+    const char *p = cmdline;
 
-    char buf[1024];
-    if (fgets(buf, sizeof(buf), f)) {
-        char *start = strstr(buf, key);
-        if (start) {
-            start += strlen(key);
-            if (*start == '=') {
-                start++;
-                sscanf(start, "%127s", value);
-                char *end = strchr(value, ' ');
-                if (end) *end = '\0';
-                fclose(f);
-                return value;
-            }
+    while (*p) {
+        while (*p == ' ' || *p == '\n')
+            p++;
+        const char *end = p + strcspn(p, " \n");
+        if ((size_t)(end - p) > klen && !strncmp(p, key, klen) && p[klen] == '=') {
+            size_t vlen = end - (p + klen + 1);
+            if (vlen >= sizeof(value))
+                vlen = sizeof(value) - 1;
+            memcpy(value, p + klen + 1, vlen);
+            value[vlen] = '\0';
+            return value;
         }
+        p = end;
     }
-
-    fclose(f);
     return NULL;
 }
 
-int main(int argc, char *argv[]) {
-    printf("Run fs_init\n");
+static void do_mount(const char *src, const char *dst, const char *type,
+                     unsigned long flags, const char *opts)
+{
+    mkdir(dst, 0755);
+    if (mount(src, dst, type, flags, opts) != 0) {
+        char msg[192];
+        snprintf(msg, sizeof(msg), "mount %s (%s) on %s failed", src, type, dst);
+        fatal(msg);
+    }
+}
 
-    mkdir("/proc", 0555);
-    if (mount("proc", "/proc", "proc", 0, NULL) != 0) {
-        perror("mount /proc failed");
-        return 1;
-    }
-    printf("procfs mounted on /proc\n");
-    
-    mkdir("/dev", 0755);
-    if (mount("devtmpfs", "/dev", "devtmpfs", 0, NULL) != 0) {
-        perror("Failed to mount devtmpfs");
-        return 1;
-    }
-    printf("devtmpfs mounted on /dev\n");
+int main(void)
+{
+    do_mount("devtmpfs", "/dev", "devtmpfs", 0, NULL);
+    setup_console();
+    printf("fs_init: starting\n");
 
-    
-    char *squashfs_dev = get_cmdline_arg("squashfs_dev");
-    if (!squashfs_dev) {
-        fprintf(stderr, "Missing squashfs_dev= in kernel cmdline\n");
-        return 1;
-    }
-    mkdir("/ro_root", 0755);
-    if (mount(squashfs_dev, "/ro_root", "squashfs", MS_RDONLY, NULL) != 0) {
-        perror("SquashFS mount to /ro_root failed");
-        return 1;
-    }
+    do_mount("proc", "/proc", "proc", 0, NULL);
+    read_cmdline();
 
-    char *rw_dev = get_cmdline_arg("rw_dev");
-    if (!rw_dev) {
-        fprintf(stderr, "Missing rw_dev= in kernel cmdline\n");
-        return 1;
-    }
-    mkdir("/mnt_overlay", 0755);
-    if (mount(rw_dev, "/mnt_overlay", "ext2", 0, NULL)) {
-        perror("Root FS mount to /mnt_overlay failed");
-        return 1;
-    }
+    const char *ro_dev = get_cmdline_arg("squashfs_dev");
+    if (!ro_dev)
+        fatal("missing squashfs_dev= on kernel cmdline");
+    do_mount(ro_dev, "/ro_root", "squashfs", MS_RDONLY, NULL);
+
+    const char *rw_dev = get_cmdline_arg("rw_dev");
+    if (!rw_dev)
+        fatal("missing rw_dev= on kernel cmdline");
+    do_mount(rw_dev, "/mnt_overlay", "ext2", 0, NULL);
 
     mkdir("/mnt_overlay/rw_root", 0755);
     mkdir("/mnt_overlay/work", 0755);
+    do_mount("overlay", NEW_ROOT, "overlay", 0,
+             "lowerdir=/ro_root,upperdir=/mnt_overlay/rw_root,workdir=/mnt_overlay/work");
+    printf("fs_init: overlay root ready (%s + %s)\n", ro_dev, rw_dev);
 
-    mkdir("/overlay_root", 0755);
-    printf("/overlay_root created\n");
+    /* Hand over /dev to the new root; /proc is remounted by inittab. */
+    mkdir(NEW_ROOT "/dev", 0755);
+    if (mount("/dev", NEW_ROOT "/dev", NULL, MS_MOVE, NULL) != 0)
+        fatal("moving /dev to new root failed");
+    umount2("/proc", MNT_DETACH);
 
-    char overlay_options[256];
-    snprintf(overlay_options, sizeof(overlay_options), "lowerdir=/ro_root,upperdir=/mnt_overlay/rw_root,workdir=/mnt_overlay/work");
-    printf("Mounting OverlayFS to / with options: %s\n", overlay_options);
-    if (mount("overlay", "/overlay_root", "overlay", 0, overlay_options) != 0) {
-        perror("OverlayFS mount failed");
-        return 1;
-    }
-    printf("OverlayFS mounted on /\n");
-
-    //list_directory_contents("/");
-
-    // chdir("/overlay_root");
-    // chroot(".");
-
-    // execve("/bin/init", (char *[]){"/bin/init", NULL}, NULL);
-    // perror("execve failed");
-
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
-    open("/dev/null", O_RDONLY);  // stdin
-    open("/dev/null", O_WRONLY);  // stdout
-    open("/dev/null", O_WRONLY);  // stderr
-
-
-    int ret = execve("/overlay_root/bin/switch_root", (char *[]){
-        "switch_root",
-        "/overlay_root",
-        "/bin/init",
-        NULL
-    }, NULL);
-    if (ret < 0) {
-        perror("switch_root failed");
-        exit(1);
-    }
-
+    execl(NEW_ROOT "/bin/switch_root", "switch_root", NEW_ROOT, "/bin/init", (char *)NULL);
+    fatal("exec switch_root failed");
     return 1;
 }

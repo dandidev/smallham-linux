@@ -7,7 +7,7 @@ This project aims to create a minimal Linux system primarily for learning purpos
 - Build a custom init system and boot process
 - Integrate core utilities using BusyBox
 - Configure the distribution using Kconfig and Makefiles
-- Produce a bootable ISO image for QEMU/VirtualBox
+- Produce a bootable disk image for QEMU
 - **Enable amateur radio control testing on minimal hardware**
 
 ## Amateur Radio Support
@@ -51,14 +51,13 @@ The project is under active development, with new modules, configuration options
 ### Prerequisites 
 #### Packages
 ```shell
-sudo pacman -S syslinux
-sudo pacman -S genisoiamge
-sudo pacman -S kconfig-frontends
+sudo pacman -S base-devel bc cpio rsync squashfs-tools e2fsprogs util-linux qemu-system-x86 kconfig-frontends
 ```
+No root access is needed for the build.
 
 #### Clone this project
 ```shell
-https://github.com/dandidev/small-linux.git
+git clone https://github.com/dandidev/small-linux.git
 ```
 
 ### Build mini linux
@@ -66,28 +65,35 @@ https://github.com/dandidev/small-linux.git
 ```shell
 make menuconfig
 ```
-- Create distro
+- Create distro (`disk.img` + `build/initramfs.cpio`)
 ```shell
 make distro
 ```
-- Create ISO
-```shell
-make iso
-```
+
+Disk layout of `disk.img`:
+
+| Partition | Content | Mounted as |
+|---|---|---|
+| `vda1` | squashfs (xz), read-only root | overlay lower layer |
+| `vda2` | ext2, writable | overlay upper layer (persistent changes) |
+
+Note: `make distro` rebuilds `disk.img`, which wipes the writable partition.
 
 ### Run with Qemu
-- Run linux
+```shell
+make run                      # builds disk.img first if it does not exist
+make run QEMU_MEM=20          # change RAM size (MB)
+make run QEMU_EXTRA="-device qemu-xhci -device usb-host,vendorid=0x08bb,productid=0x2902"
 ```
-qemu-system-x86_64 -m 30 \
-  -kernel build/kernel/arch/x86/boot/bzImage \
-  -initrd build/initramfs.cpio \
-  -drive file=disk.img,format=raw,if=virtio \
-  -append "notsc squashfs_dev=/dev/vda1 rw_dev=/dev/vda2"
-```
+`make run` does not rebuild an existing `disk.img`, so the writable partition is kept.
+With `NET` enabled QEMU user mode networking is used (`udhcpc` gets `10.0.2.15`).
 
-- Run linux with network
+To leave the system type `reboot`: QEMU runs with `-no-reboot`, so it exits
+instead of restarting. (`poweroff` cannot switch off the VM, the kernel has no ACPI.)
+
+- Run manually with bridged network
 ```
-qemu-system-x86_64 -m 30 \
+qemu-system-x86_64 -m 30 -no-reboot \
   -kernel build/kernel/arch/x86/boot/bzImage \
   -initrd build/initramfs.cpio \
   -drive file=disk.img,format=raw,if=virtio \
@@ -142,37 +148,13 @@ echo "ADEVICE plughw:0,0" > /etc/direwolf.conf
 direwolf -f 0 -c /etc/direwolf.conf
 ```
 
-#### Strip all binaries in initroot
-```shell
-find initroot -type f -executable -exec strip {} \;
-```
-
 #### .img mount
 ```shell
-sudo losetup -fP hdd.img
+sudo losetup -fP disk.img
 #losetup -a
 #lsblk
-sudo mount /dev/loop0p1 /mnt
-```
-
-#### Create ISO
-- dependencies
-- - sudo pacman -S syslinux
-- - sudo pacman -S genisoiamge
-- script
-```shell
-# sudo pacman -S syslinux
-mkdir -p iso/isolinux
-cp /usr/lib/syslinux/bios/isolinux.bin iso/isolinux
-cp /usr/lib/syslinux/bios/ldlinux.c32 iso/isolinux
-cp init.cpio iso
-cp cloned/linux/arch/x86/boot/bzImage iso
-genisoimage -o mylinux.iso \
-  -b isolinux/isolinux.bin \
-  -c isolinux/boot.cat \
-  -no-emul-boot -boot-load-size 4 -boot-info-table \
-  -iso-level 3 -quiet \
-  iso/
+sudo mount -o ro /dev/loop0p1 /mnt   # squashfs (read-only root)
+sudo mount /dev/loop0p2 /mnt         # ext2 (overlay upper layer: rw_root/)
 ```
 #### Linux commands
 ###### Filesystem
@@ -208,7 +190,7 @@ https://bellard.org/tcc/
 
 # TODO's
 - Bootchart optimalization
-- Fix poweroff
+- Fix poweroff (needs ACPI; until then use `reboot`, QEMU exits because of `-no-reboot`)
 - Config module size optimalization
 - USB modules->kernel/fs/nls/nls_base.ko->utf16s_to_utf8s() thinking
 - Testing all module

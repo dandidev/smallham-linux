@@ -2,6 +2,7 @@ ifndef INCLUDED_AX25_APPS_MK
 INCLUDED_AX25_APPS_MK := 1
 
 include packages/ncurses.mk
+include packages/lib-ax25.mk
 
 AX25_APPS_REPO := https://github.com/dandidev/ax25-apps.git
 AX25_APPS_SRC := $(SOURCES)/ax25-apps
@@ -10,7 +11,7 @@ AX25_APPS_INITROOT := $(SQUASHFS_DIR)/usr/bin
 AX25_APPS_PREPARED := $(STAMP)/ax25-apps.prepared
 AX25_APPS_INSTALLED := $(STAMP)/ax25-apps.installed
 
-AX25_APPS_CPPFLAGS := "-I$(LIB_AX25_PREFIX)/usr/include"
+AX25_APPS_CPPFLAGS := "-I$(LIB_AX25_PREFIX)/usr/include -I$(LINUX_HEADERS_DIR)/include"
 AX25_APPS_LDFLAGS := "-L$(LIB_AX25_PREFIX)/usr/lib -L$(NCURSES_PREFIX)/usr/lib -static"
 AX25_APPS_CFLAGS := "-Os"
 
@@ -30,6 +31,8 @@ $(AX25_APPS_PREPARED):
 
 $(AX25_APPS_INSTALLED): ax25-tools ncurses $(AX25_APPS_PREPARED)
 	@mkdir -p $(AX25_APPS_PREFIX)
+	cd $(AX25_APPS_SRC) && git checkout -- ax25ipd/io.c && \
+		git apply $(abspath patches/ax25-apps-termio.patch)
 	cd $(AX25_APPS_SRC) && autoreconf --install --force
 	cd $(AX25_APPS_SRC) && \
 		CPPFLAGS=$(AX25_APPS_CPPFLAGS) \

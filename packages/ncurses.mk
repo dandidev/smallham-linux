@@ -18,7 +18,8 @@ $(NCURSES_PREPARED):
 
 $(NCURSES_INSTALLED): $(NCURSES_PREPARED)
 #	cd $(NCURSES_SRC) && make distclean || true
-	cd $(NCURSES_SRC) && ./configure --prefix=/usr --enable-widec --enable-static --disable-shared --with-normal --without-debug
+	cd $(NCURSES_SRC) && ./configure --prefix=/usr --enable-widec --enable-static --disable-shared --with-normal --without-debug \
+	  --without-cxx --without-cxx-binding --without-progs --without-tests --without-manpages
 	cd $(NCURSES_SRC) && make
 	cd $(NCURSES_SRC) && make install.libs install.includes DESTDIR=$(NCURSES_PREFIX)
 	@touch $@

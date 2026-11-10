@@ -2,15 +2,6 @@
 /sources
 /toolchain
 
-bzImage
-isolinux.bin
-ldlinux.c32
-
-mylinux.iso
-
 *.img
-*.vmdk
 *.tar.*
 .vscode
-
-partitions.txt

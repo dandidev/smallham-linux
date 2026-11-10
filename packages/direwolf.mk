@@ -5,6 +5,8 @@ include packages/alsa-lib.mk
 include packages/libudevzero.mk
 
 DIREWOLF_REPO := https://github.com/wb2osz/direwolf.git
+# Pinned: the patches in patches/direwolf-*.patch are made for this commit.
+DIREWOLF_COMMIT := 2c3e987a266e4c066502c88ebcbca3c7ad980427
 DIREWOLF_SRC := $(SOURCES)/direwolf
 DIREWOLF_PREFIX := $(BUILD)/direwolf
 DIREWOLF_CMAKE_PATCH := patches/direwolf-cmakelists.patch
@@ -25,14 +27,17 @@ PKG_BINS += DIREWOLF|$(DIREWOLF_PREFIX)/usr/bin/direwolf
 #---------------------------------------------------------------------
 
 $(DIREWOLF_PREPARED):
-	git clone --depth 1 $(DIREWOLF_REPO) $(DIREWOLF_SRC) || true
+	rm -rf $(DIREWOLF_SRC)
+	git init -q $(DIREWOLF_SRC)
+	cd $(DIREWOLF_SRC) && git fetch -q --depth 1 $(DIREWOLF_REPO) $(DIREWOLF_COMMIT) && \
+		git checkout -q FETCH_HEAD
 	@touch $@
 
 $(DIREWOLF_PATCHED): $(DIREWOLF_PREPARED)
 	cd $(DIREWOLF_SRC) && git clean -fdx && git reset --hard
 	cd $(DIREWOLF_SRC) && mkdir -p build
-	cd $(DIREWOLF_SRC) && patch -p0 < $(abspath $(DIREWOLF_CMAKE_PATCH)) || true
-	cd $(DIREWOLF_SRC)/src && patch -p0 < $(abspath $(DIREWOLF_SRC_CMAKE_PATCH)) || true
+	cd $(DIREWOLF_SRC) && patch -p0 < $(abspath $(DIREWOLF_CMAKE_PATCH))
+	cd $(DIREWOLF_SRC)/src && patch -p0 < $(abspath $(DIREWOLF_SRC_CMAKE_PATCH))
 	@touch $@
 
 $(DIREWOLF_INSTALLED): $(DIREWOLF_PATCHED) libudev-zero alsa-lib
