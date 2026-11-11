@@ -308,9 +308,11 @@ $(BUSYBOX_BUILD)/.config: $(BUSYBOX_FRAGMENT) $(BUSYBOX_SRC)/.prepared
 	yes "" | $(MAKE) -C $(BUSYBOX_SRC) O=$(BUSYBOX_BUILD) oldconfig > /dev/null
 	scripts/check-config.sh $(BUSYBOX_FRAGMENT) $@
 
-$(BUSYBOX_BUILD)/busybox: $(BUSYBOX_BUILD)/.config FORCE
-	CFLAGS="-Os -flto" LDFLAGS="-static -flto" \
-	$(MAKE) -C $(BUSYBOX_SRC) O=$(BUSYBOX_BUILD)
+# Static musl build: about 4x smaller than static glibc.
+# musl-gcc does not see the kernel headers, the network applets need them.
+$(BUSYBOX_BUILD)/busybox: $(BUSYBOX_BUILD)/.config FORCE | musl kernel-headers
+	$(MAKE) -C $(BUSYBOX_SRC) O=$(BUSYBOX_BUILD) CC="$(MUSL_CC)" \
+	  CFLAGS="-Os -flto -I$(LINUX_HEADERS_DIR)/include" LDFLAGS="-static -flto"
 
 # --------------------------------------------------------------------
 # Root filesystem (rebuilt from scratch, so disabled features leave nothing behind)
