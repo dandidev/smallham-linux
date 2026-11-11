@@ -7,4 +7,4 @@
 .vscode
 .config
 .config.old
-defconfig
+/defconfig

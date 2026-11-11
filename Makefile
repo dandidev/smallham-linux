@@ -24,7 +24,13 @@ BUILD := $(ROOT)/build
 PREFIX := $(ROOT)/toolchain
 STAMP := $(BUILD)/stamps
 
-$(shell mkdir -p $(SOURCES) $(BUILD) $(PREFIX) $(STAMP))
+# Output files: build/out/smallham-<image name>-<arch>-...
+OUT := $(BUILD)/out
+ARCH_NAME := x86_64
+IMAGE_NAME ?= $(or $(subst ",,$(CONFIG_IMAGE_NAME)),custom)
+OUT_NAME := smallham-$(IMAGE_NAME)-$(ARCH_NAME)
+
+$(shell mkdir -p $(SOURCES) $(BUILD) $(PREFIX) $(STAMP) $(OUT))
 
 # --------------------------------------------------------------------
 
@@ -37,6 +43,7 @@ KERNEL_PREPARED := $(STAMP)/kernel-$(KERNEL_VERSION).prepared
 KERNEL_CONFIGURED := $(STAMP)/kernel-$(KERNEL_VERSION).configured
 KERNEL_FRAGMENT := $(BUILD)/kernel.fragment
 BZIMAGE := $(KERNEL_BUILD)/arch/x86/boot/bzImage
+OUT_BZIMAGE := $(OUT)/$(OUT_NAME)-bzImage
 
 LINUX_HEADERS_DIR := $(PREFIX)/linux-headers
 LINUX_HEADERS_INSTALLED := $(STAMP)/linux-headers-$(KERNEL_VERSION).installed
@@ -49,13 +56,14 @@ BUSYBOX_BUILD := $(BUILD)/busybox
 BUSYBOX_FRAGMENT := $(BUILD)/busybox.fragment
 
 ROOTFS_DIR := $(BUILD)/rootfs
-INITRAMFS := $(BUILD)/initramfs.cpio.xz
+INITRAMFS := $(OUT)/$(OUT_NAME)-initramfs.cpio.xz
+INITRAMFS_CPIO := $(BUILD)/initramfs.cpio
 INITRAMFS_LIST := $(BUILD)/initramfs.list
 # Small dictionary: the kernel allocates the whole dictionary while unpacking
 # (xz -9 would need 64 MiB RAM).
 XZ_INITRAMFS := xz --check=crc32 --lzma2=preset=9e,dict=1MiB
 
-IMG := $(ROOT)/disk.img
+IMG := $(OUT)/$(OUT_NAME)-disk.img
 DISK_SIZE_MB := 8
 SQUASHFS_SIZE_MB := 6
 SQUASHFS_IMG := $(BUILD)/squashfs.img
@@ -68,8 +76,8 @@ RW_START := $(shell echo $$(($(SQUASHFS_START) + $(SQUASHFS_SECTORS))))
 RW_SECTORS := $(shell echo $$(($(DISK_SIZE_MB) * 2048 - $(RW_START))))
 
 ISO_DIR := $(BUILD)/iso
-ISO_IMG := $(BUILD)/smallham.iso
-VMDK := $(BUILD)/disk.vmdk
+ISO_IMG := $(OUT)/$(OUT_NAME).iso
+VMDK := $(OUT)/$(OUT_NAME)-disk.vmdk
 
 # --------------------------------------------------------------------
 # Feature selection: .config -> kernel/BusyBox config fragments, rootfs
@@ -217,12 +225,14 @@ else
 distro: kernel initramfs
 endif
 
+# Keeps the disk image (the data on its writable partition).
 clean-distro:
-	rm -rf $(ROOTFS_DIR) $(INITRAMFS) $(ISO_DIR) $(ISO_IMG) $(VMDK)
+	rm -rf $(ROOTFS_DIR) $(ISO_DIR) $(OUT_BZIMAGE) $(INITRAMFS) $(ISO_IMG) $(VMDK)
 
 extras: $(BUILD_PKGS)
 
 dbg-vars:
+	@echo "OUTPUT            = $(OUT)/$(OUT_NAME)*"
 	@echo "KERNEL_FRAGMENTS  = $(KERNEL_FRAGMENT_FILES)"
 	@echo "BUSYBOX_FRAGMENTS = $(BUSYBOX_FRAGMENT_FILES)"
 	@echo "ROOTFS_OVERLAYS   = $(ROOTFS_OVERLAYS)"
@@ -269,7 +279,10 @@ FORCE:
 # --------------------------------------------------------------------
 # Kernel: allnoconfig + selected fragments, everything built in
 
-kernel: $(BZIMAGE)
+kernel: $(OUT_BZIMAGE)
+
+$(OUT_BZIMAGE): $(BZIMAGE)
+	cp $< $@
 
 $(KERNEL_PREPARED):
 	@mkdir -p $(SOURCES)
@@ -376,10 +389,10 @@ initramfs: rootfs kernel
 	printf '%s\n' \
 	  'nod /dev/console 0600 0 0 c 5 1' \
 	  'slink /init /bin/busybox 0777 0 0' > $(INITRAMFS_LIST)
-	cd $(KERNEL_BUILD) && $(KERNEL_SRC)/usr/gen_initramfs.sh -o $(INITRAMFS).cpio \
+	cd $(KERNEL_BUILD) && $(KERNEL_SRC)/usr/gen_initramfs.sh -o $(INITRAMFS_CPIO) \
 	  -u $$(id -u) -g $$(id -g) $(ROOTFS_DIR) $(INITRAMFS_LIST)
-	$(XZ_INITRAMFS) < $(INITRAMFS).cpio > $(INITRAMFS)
-	rm -f $(INITRAMFS).cpio
+	$(XZ_INITRAMFS) < $(INITRAMFS_CPIO) > $(INITRAMFS)
+	rm -f $(INITRAMFS_CPIO)
 
 endif
 
@@ -420,7 +433,7 @@ ifeq ($(CONFIG_ROOTFS_DISK),y)
 	@[ -f $(IMG) ] || $(MAKE) $(IMG)
 endif
 	qemu-system-x86_64 -m $(QEMU_MEM) -no-reboot \
-	    -kernel $(BZIMAGE) -initrd $(INITRAMFS) \
+	    -kernel $(OUT_BZIMAGE) -initrd $(INITRAMFS) \
 	    -append "$(KERNEL_CMDLINE)" \
 	    $(QEMU_ARGS) $(QEMU_EXTRA)
 
@@ -438,7 +451,7 @@ endif
 iso: distro
 	rm -rf $(ISO_DIR)
 	mkdir -p $(ISO_DIR)/isolinux
-	cp $(BZIMAGE) $(ISO_DIR)/bzImage
+	cp $(OUT_BZIMAGE) $(ISO_DIR)/bzImage
 	cp $(INITRAMFS) $(ISO_DIR)/initrd.xz
 	cp $(ISOLINUX_DIR)/isolinux.bin $(ISOLINUX_DIR)/ldlinux.c32 $(ISO_DIR)/isolinux/
 	printf 'DEFAULT linux\nLABEL linux\n    KERNEL /bzImage\n    APPEND initrd=/initrd.xz %s\n' \

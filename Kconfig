@@ -9,6 +9,15 @@ mainmenu "SmallHam Configuration"
 
 menu "System"
 
+config IMAGE_NAME
+    string "Image name (part of the output file names)"
+    default "custom"
+    help
+      The output files in build/out/ are named
+      smallham-<image name>-x86_64-..., e.g. smallham-ham-x86_64.iso.
+      The defconfigs set it (base, ham). It can also be given on the
+      command line: make IMAGE_NAME=test
+
 choice
     prompt "Target platform"
     default PLATFORM_QEMU

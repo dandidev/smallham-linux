@@ -2,7 +2,8 @@
 
 This project builds a very small Linux system, mainly for learning. You can see
 how a Linux system is put together from the ground up: the Linux kernel,
-BusyBox and a few optional programs. The system is 64-bit (x86_64).
+BusyBox and a few optional programs. The system is 64-bit (x86_64); the output
+file names show it, e.g. `smallham-ham-x86_64.iso`.
 
 ## Key Objectives:
 - Practice compiling and configuring the Linux kernel
@@ -81,9 +82,9 @@ Measured sizes of the built system:
 |---|---|---|
 | Kernel (`bzImage`) | 813 KB | 1.6 MB |
 | initramfs | 113 KB (the whole system) | 11 KB (only the disk mounter) |
-| Root filesystem | inside the initramfs | 1.0 MB squashfs in `disk.img` (192 KB without the ham programs) |
-| **Total on disk** | **926 KB** | **2.6 MB** (`disk.img` itself is 8 MB with free space) |
-| VirtualBox ISO | 1.4 MB | 2.2 MB (+ 1.2 MB `disk.vmdk`) |
+| Root filesystem | inside the initramfs | 1.0 MB squashfs in the disk image (192 KB without the ham programs) |
+| **Total on disk** | **926 KB** | **2.6 MB** (the disk image itself is 8 MB with free space) |
+| VirtualBox ISO | 1.4 MB | 2.2 MB (+ 1.2 MB `.vmdk` disk) |
 | RAM used after boot | 1.5 MB | 5.2 MB (8.8 MB with Dire Wolf running) |
 
 The ham programs in the root filesystem (xz compressed): Dire Wolf 490 KB,
@@ -96,10 +97,12 @@ The base image has only the kernel and a BusyBox shell. You add every other
 feature with `make menuconfig`:
 
 ```shell
-make defconfig       # base image (used when there is no .config)
-make ham_defconfig   # ham radio setup: disk, network, USB sound, AX.25, Dire Wolf
-make menuconfig      # add or remove features
-make savedefconfig   # save the current selection to ./defconfig
+make defconfig            # base image (used when there is no .config)
+make ham_defconfig        # ham radio setup: disk, network, USB sound, AX.25, Dire Wolf
+make base_vbox_defconfig  # base image for VirtualBox (ISO)
+make ham_vbox_defconfig   # ham radio setup for VirtualBox (ISO + disk)
+make menuconfig           # add or remove features
+make savedefconfig        # save the current selection to ./defconfig
 ```
 To keep a selection, copy `./defconfig` to `configs/<name>_defconfig`. Then
 `make <name>_defconfig` loads it.
@@ -117,6 +120,7 @@ How the options are used:
 final config. This happens with a misspelled option name or a missing dependency.
 
 #### System
+- **Image name**: part of the output file names (`base`, `ham`, ...; `custom` if not set)
 - **Target platform**: `QEMU` (disk: virtio-blk, `/dev/vda`) or `VirtualBox (ISO)` (disk: VirtIO SCSI, `/dev/sda`)
 - **Root filesystem**:
   - `initramfs only`: the whole system is in RAM, changes are lost on reboot
@@ -178,40 +182,44 @@ Build the programs as static binaries with `$(MUSL_CC)`. See `packages/ax25-tool
 ```shell
 make
 ```
-Output:
+The output files are in `build/out/`. Their names are
+`smallham-<image name>-x86_64-...`, so the files of different configurations
+(and later of other architectures) do not overwrite each other. `make dbg-vars`
+shows the name for your configuration.
 
-| File | What it is |
+| File (example: `ham_defconfig`) | What it is |
 |---|---|
-| `build/kernel/arch/x86/boot/bzImage` | the kernel |
-| `build/initramfs.cpio.xz` | the initramfs (the whole system, or only `fs_init` with the persistent disk) |
-| `disk.img` | the disk image, only with `Persistent disk` |
+| `smallham-ham-x86_64-bzImage` | the kernel |
+| `smallham-ham-x86_64-initramfs.cpio.xz` | the initramfs (the whole system, or only `fs_init` with the persistent disk) |
+| `smallham-ham-x86_64-disk.img` | the disk image, only with `Persistent disk` |
 
-Partitions of `disk.img`:
+Partitions of the disk image:
 
 | Partition | Content | Used as |
 |---|---|---|
 | 1 (`vda1`) | squashfs (xz), read-only root | lower layer of the overlay |
 | 2 (`vda2`) | ext2, writable | upper layer of the overlay (your changes) |
 
-Note: `make` builds `disk.img` again, and this deletes your changes on the
+Note: `make` builds the disk image again, and this deletes your changes on the
 writable partition. You can change the sizes, e.g. `make DISK_SIZE_MB=16 SQUASHFS_SIZE_MB=8`.
 
 Make targets:
 
 | Target | What it does |
 |---|---|
-| `make` | builds the kernel, the initramfs and `disk.img` |
+| `make` | builds the kernel, the initramfs and the disk image |
 | `make run` | starts the system in QEMU |
 | `make iso` | makes the VirtualBox ISO (and `.vmdk`) |
 | `make menuconfig`, `defconfig`, `<name>_defconfig`, `oldconfig`, `savedefconfig` | configuration |
+| `make IMAGE_NAME=<name>` | build with another image name (other output file names) |
 | `make dbg-vars` | shows the selected config files, packages and the kernel command line |
-| `make clean-distro` | deletes the root filesystem, the initramfs and the ISO |
+| `make clean-distro` | deletes the root filesystem and the output files, except the disk image |
 | `make clean` | deletes everything, also the downloaded sources (~2 GB to download again) |
 
 ## Run
 ### Run with Qemu (make run)
 `make run` builds the kernel and the initramfs if the configuration changed,
-then starts QEMU. It does not build `disk.img` again if it exists, so your
+then starts QEMU. It does not build the disk image again if it exists, so your
 changes are kept. Run `make` if you changed what goes into the root filesystem.
 ```shell
 make run                      # default RAM: 30 MB
@@ -228,50 +236,56 @@ instead of starting again. With the ACPI option `poweroff` works too.
 With the serial console leave QEMU with `Ctrl-A X`.
 
 ### Run with Qemu (without make)
-You can copy the built files to any computer with QEMU and start them there.
-`make dbg-vars` shows the kernel command line (`-append`) of your configuration.
+You can copy the files from `build/out/` to any computer with QEMU and start
+them there. `make dbg-vars` shows the kernel command line (`-append`) of your
+configuration.
 
-- Base image (`initramfs only`): copy `bzImage` and `initramfs.cpio.xz`
+- Base image (`defconfig`): copy the bzImage and the initramfs
 ```shell
 qemu-system-x86_64 -m 16 -no-reboot \
-  -kernel bzImage -initrd initramfs.cpio.xz \
+  -kernel smallham-base-x86_64-bzImage \
+  -initrd smallham-base-x86_64-initramfs.cpio.xz \
   -append "notsc"
 ```
-- Persistent disk (`QEMU` platform, e.g. `ham_defconfig`): copy also `disk.img`
+- Ham radio setup (`ham_defconfig`, persistent disk): copy also the disk image
 ```shell
 qemu-system-x86_64 -m 32 -no-reboot \
-  -kernel bzImage -initrd initramfs.cpio.xz \
-  -drive file=disk.img,format=raw,if=virtio \
+  -kernel smallham-ham-x86_64-bzImage \
+  -initrd smallham-ham-x86_64-initramfs.cpio.xz \
+  -drive file=smallham-ham-x86_64-disk.img,format=raw,if=virtio \
   -append "notsc squashfs_dev=/dev/vda1 rw_dev=/dev/vda2" \
   -netdev user,id=net0 -device virtio-net-pci,netdev=net0
 ```
 - Serial console: add `console=ttyS0` to `-append` and `-nographic` to QEMU
-- ISO (`VirtualBox` platform): the kernel command line is inside the ISO.
+- ISO (`ham_vbox_defconfig`): the kernel command line is inside the ISO.
   `-boot d` is needed, because the disk has no boot loader.
 ```shell
-qemu-system-x86_64 -m 32 -no-reboot -boot d -cdrom smallham.iso \
+qemu-system-x86_64 -m 32 -no-reboot -boot d -cdrom smallham-ham-vbox-x86_64.iso \
   -device virtio-scsi-pci,id=scsi0 \
-  -drive file=disk.img,format=raw,if=none,id=disk0 -device scsi-hd,drive=disk0,bus=scsi0.0 \
+  -drive file=smallham-ham-vbox-x86_64-disk.img,format=raw,if=none,id=disk0 \
+  -device scsi-hd,drive=disk0,bus=scsi0.0 \
   -netdev user,id=net0 -device virtio-net-pci,netdev=net0
 ```
-  (Without `Persistent disk` only `-cdrom smallham.iso` is needed.)
+  (For the base image only `-cdrom smallham-base-vbox-x86_64.iso` is needed.)
 
 ### Run with VirtualBox
-Select `Target platform: VirtualBox (ISO)` in `make menuconfig`, then:
+Load a VirtualBox configuration (or select `Target platform: VirtualBox (ISO)`
+in `make menuconfig`), then make the ISO:
 ```shell
+make ham_vbox_defconfig     # or: make base_vbox_defconfig
 make iso
 ```
-Output:
+Output in `build/out/`:
 
-| File | What it is |
+| File (example: `ham_vbox_defconfig`) | What it is |
 |---|---|
-| `build/smallham.iso` | bootable CD image with the kernel and the initramfs |
-| `build/disk.vmdk` | the persistent disk in VirtualBox format (only with `Persistent disk`) |
+| `smallham-ham-vbox-x86_64.iso` | bootable CD image with the kernel and the initramfs |
+| `smallham-ham-vbox-x86_64-disk.vmdk` | the persistent disk in VirtualBox format (only with `Persistent disk`) |
 
 Copy these files to any computer with VirtualBox and set up a VM:
 - Type: Linux, 64-bit. Memory: 16 MB for the base image, 32 MB for the ham radio setup
-- Optical drive (IDE): `smallham.iso`, boot from it
-- Persistent disk: add a **VirtIO SCSI** storage controller and attach `disk.vmdk` to it
+- Optical drive (IDE): the `.iso` file, boot from it
+- Persistent disk: add a **VirtIO SCSI** storage controller and attach the `.vmdk` file to it
 - Network: adapter type **Paravirtualized Network (virtio-net)**
 
 The same from the command line:
@@ -280,8 +294,8 @@ VBoxManage createvm --name smallham --ostype Linux_64 --register
 VBoxManage modifyvm smallham --memory 32 --boot1 dvd --boot2 disk --nic1 nat --nictype1 virtio --graphicscontroller vboxvga --audio-enabled off
 VBoxManage storagectl smallham --name IDE --add ide
 VBoxManage storagectl smallham --name VSCSI --add virtio-scsi
-VBoxManage storageattach smallham --storagectl IDE --port 1 --device 0 --type dvddrive --medium smallham.iso
-VBoxManage storageattach smallham --storagectl VSCSI --port 0 --device 0 --type hdd --medium disk.vmdk
+VBoxManage storageattach smallham --storagectl IDE --port 1 --device 0 --type dvddrive --medium smallham-ham-vbox-x86_64.iso
+VBoxManage storageattach smallham --storagectl VSCSI --port 0 --device 0 --type hdd --medium smallham-ham-vbox-x86_64-disk.vmdk
 VBoxManage startvm smallham
 ```
 
@@ -328,9 +342,9 @@ echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward
 - Start QEMU with the bridge (persistent disk)
 ```shell
 qemu-system-x86_64 -m 32 -no-reboot \
-  -kernel build/kernel/arch/x86/boot/bzImage \
-  -initrd build/initramfs.cpio.xz \
-  -drive file=disk.img,format=raw,if=virtio \
+  -kernel build/out/smallham-ham-x86_64-bzImage \
+  -initrd build/out/smallham-ham-x86_64-initramfs.cpio.xz \
+  -drive file=build/out/smallham-ham-x86_64-disk.img,format=raw,if=virtio \
   -append "notsc squashfs_dev=/dev/vda1 rw_dev=/dev/vda2" \
   -device qemu-xhci -device usb-host,vendorid=0x08bb,productid=0x2902 \
   -netdev bridge,id=net0,br=virbr0 \
@@ -387,18 +401,19 @@ ip addr show ax0
 `-t 0` turns off the colors. Without `kissparms -c 1` Dire Wolf says
 "Invalid transmit channel" for the frames of the Linux KISS driver.
 
-### Look into disk.img
+### Look into the disk image
 Without root, on your computer (the numbers are for the default partition
-sizes, see `sfdisk -l disk.img`):
+sizes, see `sfdisk -l <disk image>`):
 ```shell
-dd if=disk.img of=/tmp/rootfs.sqfs bs=512 skip=2048 count=12288
+cd build/out
+dd if=smallham-ham-x86_64-disk.img of=/tmp/rootfs.sqfs bs=512 skip=2048 count=12288
 unsquashfs -ls /tmp/rootfs.sqfs                  # read-only root
-dd if=disk.img of=/tmp/rw.ext2 bs=512 skip=14336
+dd if=smallham-ham-x86_64-disk.img of=/tmp/rw.ext2 bs=512 skip=14336
 debugfs -R "ls -l /rw_root" /tmp/rw.ext2         # your changes
 ```
 With root:
 ```shell
-sudo losetup -fP disk.img
+sudo losetup -fP build/out/smallham-ham-x86_64-disk.img
 #losetup -a
 #lsblk
 sudo mkdir -p /mnt/ro /mnt/rw
@@ -416,6 +431,7 @@ sudo mount /dev/loop0p2 /mnt/rw         # ext2 (your changes: rw_root/)
 | `packages/` | extra programs (musl, AX.25, Dire Wolf, ALSA, ...) |
 | `patches/` | patches for the programs |
 | `scripts/` | helper scripts for the config files |
+| `build/out/` | output files: kernel, initramfs, disk image, ISO |
 | `sources/`, `toolchain/`, `build/` | downloaded sources, libraries, build output (not in git) |
 
 ### Under Construction
