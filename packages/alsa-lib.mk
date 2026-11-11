@@ -14,6 +14,10 @@ ALSA_LIB_INSTALLED := $(STAMP)/alsa-lib.installed
 ALSA_LIB_CFLAGS := "-Os -ffunction-sections -fdata-sections -I$(LINUX_HEADERS_DIR)/include"
 ALSA_LIB_LDFLAGS := "-Wl,--gc-sections"
 
+# ALSA configuration: without /usr/share/alsa/alsa.conf no audio device can be opened
+PKG_DIRS += DIREWOLF|$(ALSA_LIB_PREFIX)/usr/share/alsa:/usr/share/alsa
+PKG_DIRS += ALSA_UTILS_APLAY|$(ALSA_LIB_PREFIX)/usr/share/alsa:/usr/share/alsa
+
 #---------------------------------------------------------------------
 
 $(ALSA_LIB_PREPARED):

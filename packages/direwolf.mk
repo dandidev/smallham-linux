@@ -23,6 +23,8 @@ DIREWOLF_CMAKE_EXE_LINKER_FLAGS := "-Wl,--whole-archive $(ALSA_LIB_PREFIX)/usr/l
 PKG_FEATURES += DIREWOLF|direwolf
 
 PKG_BINS += DIREWOLF|$(DIREWOLF_PREFIX)/usr/bin/direwolf
+# APRS symbol and device tables (symbols-new.txt, tocalls.txt, ...)
+PKG_DIRS += DIREWOLF|$(DIREWOLF_PREFIX)/usr/share/direwolf:/usr/share/direwolf
 
 #---------------------------------------------------------------------
 

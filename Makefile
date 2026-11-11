@@ -174,6 +174,7 @@ include $(wildcard packages/*.mk)
 
 BUILD_PKGS :=
 RUNTIME_BINS :=
+RUNTIME_DIRS :=
 
 _delim := |
 _split = $(word $(1),$(subst $(_delim), ,$(2)))
@@ -188,11 +189,19 @@ $(if $(CONFIG_$(call _split,1,$(1))),\
      $(eval RUNTIME_BINS += $(call _split,2,$(1))))
 endef
 
+# PKG_DIRS entries: FEATURE|<source dir>:<destination dir in the rootfs>
+define ProcessDir
+$(if $(CONFIG_$(call _split,1,$(1))),\
+     $(eval RUNTIME_DIRS += $(call _split,2,$(1))))
+endef
+
 $(foreach f,$(PKG_FEATURES), $(call ProcessFeature,$f))
 $(foreach b,$(PKG_BINS), $(call ProcessBin,$b))
+$(foreach d,$(PKG_DIRS), $(call ProcessDir,$d))
 
 BUILD_PKGS   := $(sort $(BUILD_PKGS))
 RUNTIME_BINS := $(sort $(RUNTIME_BINS))
+RUNTIME_DIRS := $(sort $(RUNTIME_DIRS))
 
 # --------------------------------------------------------------------
 
@@ -220,6 +229,7 @@ dbg-vars:
 	@echo "KERNEL_CMDLINE    = $(KERNEL_CMDLINE)"
 	@echo "BUILD_PKGS        = $(BUILD_PKGS)"
 	@echo "RUNTIME_BINS      = $(RUNTIME_BINS)"
+	@echo "RUNTIME_DIRS      = $(RUNTIME_DIRS)"
 
 # --------------------------------------------------------------------
 # Configuration (kconfig-frontends)
@@ -328,6 +338,10 @@ ifneq ($(RUNTIME_BINS),)
 	mkdir -p $(ROOTFS_DIR)/usr/bin
 	cp $(RUNTIME_BINS) $(ROOTFS_DIR)/usr/bin/
 endif
+	for d in $(RUNTIME_DIRS); do \
+	  src=$${d%%:*}; dst=$(ROOTFS_DIR)$${d#*:}; \
+	  mkdir -p $$dst && cp -a $$src/. $$dst/; \
+	done
 	find $(ROOTFS_DIR) -type f -perm /a+x -print0 | \
 	xargs -0 file -i | awk -F: '/application\/x-executable/{print $$1}' | \
 	xargs -r strip --strip-all
@@ -397,12 +411,13 @@ $(IMG): rootfs
 QEMU_MEM ?= 30
 QEMU_EXTRA ?=
 
-# Does not rebuild anything if the images exist (data on the rw partition survives).
+# Kernel and initramfs are brought up to date with the current .config.
+# disk.img is only built if it does not exist (data on the rw partition
+# survives); run 'make' after changing what goes into the root filesystem.
 # -no-reboot: 'reboot' exits QEMU.
-run:
-	@[ -f $(BZIMAGE) ] && [ -f $(INITRAMFS) ] || $(MAKE) distro
+run: kernel initramfs
 ifeq ($(CONFIG_ROOTFS_DISK),y)
-	@[ -f $(IMG) ] || $(MAKE) distro
+	@[ -f $(IMG) ] || $(MAKE) $(IMG)
 endif
 	qemu-system-x86_64 -m $(QEMU_MEM) -no-reboot \
 	    -kernel $(BZIMAGE) -initrd $(INITRAMFS) \
