@@ -55,9 +55,6 @@ $(DIREWOLF_INSTALLED): $(DIREWOLF_PATCHED) libudev-zero alsa-lib
 	cd $(DIREWOLF_SRC) && make
 	@mkdir -p $(DIREWOLF_PREFIX)
 	cd $(DIREWOLF_SRC) && make DESTDIR=$(DIREWOLF_PREFIX) install
-#	strip $(DIREWOLF_PREFIX)/usr/bin/direwolf
-#	@mkdir -p $(INITROOT)/usr/bin
-#	cp $(DIREWOLF_PREFIX)/usr/bin/direwolf $(INITROOT)/usr/bin
 	@touch $@
 
 direwolf: $(DIREWOLF_INSTALLED)

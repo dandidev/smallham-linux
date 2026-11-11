@@ -1,0 +1,4 @@
+export PATH=/bin:/usr/bin
+export HOME=/root
+export PS1='smallham \[\033[0;90m\]#\[\033[0m\] '
+cd "$HOME" 2>/dev/null || cd /

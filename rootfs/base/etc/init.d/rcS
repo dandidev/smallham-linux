@@ -1,17 +1,15 @@
 #!/bin/sh
-# System startup: load kernel modules, start syslog, run /etc/init.d/S??* scripts.
+# System startup: start syslog (if installed), run /etc/init.d/S??* scripts.
+
+# With the disk root fs_init has already moved its devtmpfs here.
+# (Not in inittab: BusyBox init runs such lines as 'exec cmd', so '||' would not work.)
+mountpoint -q /dev || mount -t devtmpfs devtmpfs /dev
 
 mkdir -p /var/run /var/log /tmp
 
-MODDIR="/lib/modules/$(uname -r)"
-if [ -d "$MODDIR" ]; then
-    for mod in $(find "$MODDIR" -type f -name '*.ko'); do
-        name=$(basename "$mod" .ko)
-        modprobe "$name" 2>/dev/null || echo "rcS: failed to load module $name"
-    done
+if command -v syslogd >/dev/null; then
+    syslogd -C12 -S
 fi
-
-syslogd -C12 -S
 
 for script in /etc/init.d/S[0-9][0-9]*; do
     [ -x "$script" ] && "$script"

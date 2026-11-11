@@ -3,7 +3,7 @@
 This project aims to create a minimal Linux system primarily for learning purposes. The goal is to gain a deep understanding of how a Linux-based system is constructed from the ground up, and how to assemble a working distribution using a modular approach with the Linux kernel, BusyBox, and optional components.
 ## Key Objectives:
 - Practice compiling and configuring the Linux kernel
-- Understand initramfs and kernel module handling
+- Understand initramfs and the boot process
 - Build a custom init system and boot process
 - Integrate core utilities using BusyBox
 - Configure the distribution using Kconfig and Makefiles
@@ -12,48 +12,67 @@ This project aims to create a minimal Linux system primarily for learning purpos
 
 ## Amateur Radio Support
 
-This project includes amateur radio kernel modules (e.g., AX.25, MKISS, 6PACK, NET/ROM, ROSE), offering functionality tailored for the amateur radio community. One of the key objectives was to enable running the system on minimal hardware, making it suitable for simulating repeater stations or radio tower emulation on general-purpose computers.
+This project includes amateur radio kernel drivers (e.g., AX.25, MKISS, 6PACK, NET/ROM, ROSE), offering functionality tailored for the amateur radio community. One of the key objectives was to enable running the system on minimal hardware, making it suitable for simulating repeater stations or radio tower emulation on general-purpose computers.
 
 
-## Configuration Options (menuconfig)
+## Configuration (menuconfig)
 
-To customize the system, use the make menuconfig command. This lets you choose which features and modules are included in the initramfs and the final bootable system.
+The base image contains nothing but the kernel and a BusyBox shell in an
+initramfs. Every feature is added with `make menuconfig`:
 
-Each option corresponds to a .modlist file, defining which kernel modules will be copied into initroot/lib/modules/.
-Available module options:
+```shell
+make defconfig       # base image (default when there is no .config)
+make ham_defconfig   # ham radio setup: disk, network, USB sound, AX.25, direwolf
+make menuconfig      # add/remove features
+make savedefconfig   # write the current selection to ./defconfig
+```
 
-#### `HAM` – Hamradio drivers
+How the options are applied:
 
-- Enables support for AX.25, NetROM, ROSE, 6PACK, and other hamradio protocols.
-- Use case: Amateur radio communication, tower emulation setups.
+| What | Where | How |
+|---|---|---|
+| Kernel | `configs/kernel/*.config` | `allnoconfig` + the fragments of the selected options, all drivers built in (no modules) |
+| BusyBox | `configs/busybox/*.config` | `allnoconfig` + the fragments of the selected options |
+| Root filesystem | `rootfs/<name>/` | copied over each other (`base` always) |
+| Programs | `packages/*.mk` | built and copied to `/usr/bin` |
 
-#### `NET` – Network drivers (VirtIO) support
-- Enables virtio_net, net_failover, and related networking support.
-- Use case: Provides eth0 or similar virtual NICs, usable in QEMU with -netdev.
+`scripts/check-config.sh` stops the build if an option of a fragment did not get
+into the final config (misspelled name or missing dependency).
 
-#### `USB` – USB support (VirtIO)
-- Enables USB core, EHCI/XHCI host controllers, and common USB infrastructure.
-- Use case: Connect USB peripherals like serial adapters, USB sound cards, etc.
+#### System
+- **Target platform**: `QEMU` (disk: virtio-blk, `/dev/vda`) or `VirtualBox (ISO)` (disk: VirtIO SCSI, `/dev/sda`)
+- **Root filesystem**:
+  - `initramfs only`: the whole system is in RAM, changes are lost on reboot
+  - `Persistent disk`: read-only squashfs + writable ext2 combined with overlayfs (`fs_init`)
+- **Console**: VGA + PS/2 keyboard, or serial (`ttyS0`, QEMU runs with `-nographic`)
+- **ACPI**: `poweroff` switches off the VM (without it use `reboot`)
 
-#### `USB_STORAGE` – USB mass storage (VirtIO) support
-- Enables usb-storage, sd_mod, scsi_mod, and other storage-related modules.
-- Depends on: USB must be enabled.
-- Use case: Attach and access USB drives, flash disks.
+#### Kernel drivers
+- `NET` – virtio-net, IPv4, DHCP (`ifup`, `udhcpc`)
+- `USB` – xHCI/EHCI host controllers (for passed through USB devices)
+- `USB_STORAGE` – USB mass storage with FAT filesystem
+- `SOUND` – USB sound cards (ALSA)
+- `HAM` – AX.25, NET/ROM, ROSE, MKISS (KISS), 6PACK, BPQ, Baycom, YAM
 
-#### `SOUND` – Sound driver support
-- Loads sound modules like snd-core, snd-usb-audio, snd-pcm, etc.
-- Use case: USB sound card output, digital modulation testing for hamradio.
+#### Userspace
+- `BB_TOOLS` – grep, sed, find, head, tail, less, top, ...
+- `BB_EDITOR` – vi
+- `BB_SYSLOG` – syslogd, logread
 
-
-The project is under active development, with new modules, configuration options, and tools being added regularly.
+#### Extras
+- AX.25 tools (`kissattach`, `kissparms`, `netromd`), AX.25 apps (`call`, `listen`, `ax25ipd`), Dire Wolf, `aplay`
+- Optional default configs: `/usr/etc/ax25/axports`, `/etc/direwolf.conf`
 
 ## Getting started
 ### Prerequisites 
 #### Packages
 ```shell
 sudo pacman -S base-devel bc cpio rsync squashfs-tools e2fsprogs util-linux qemu-system-x86 kconfig-frontends
+# for VirtualBox ISO:
+sudo pacman -S syslinux cdrtools
 ```
-No root access is needed for the build.
+No root access is needed for the build. About 2.5 GB free space is needed
+(mostly the kernel source).
 
 #### Clone this project
 ```shell
@@ -61,14 +80,14 @@ git clone https://github.com/dandidev/small-linux.git
 ```
 
 ### Build mini linux
-- Select modules
 ```shell
 make menuconfig
+make
 ```
-- Create distro (`disk.img` + `build/initramfs.cpio`)
-```shell
-make distro
-```
+Output:
+- `build/kernel/arch/x86/boot/bzImage`
+- `build/initramfs.cpio.xz`
+- `disk.img` (only with `Persistent disk`)
 
 Disk layout of `disk.img`:
 
@@ -77,11 +96,11 @@ Disk layout of `disk.img`:
 | `vda1` | squashfs (xz), read-only root | overlay lower layer |
 | `vda2` | ext2, writable | overlay upper layer (persistent changes) |
 
-Note: `make distro` rebuilds `disk.img`, which wipes the writable partition.
+Note: `make` rebuilds `disk.img`, which wipes the writable partition.
 
 ### Run with Qemu
 ```shell
-make run                      # builds disk.img first if it does not exist
+make run                      # builds the images first if they do not exist
 make run QEMU_MEM=20          # change RAM size (MB)
 make run QEMU_EXTRA="-device qemu-xhci -device usb-host,vendorid=0x08bb,productid=0x2902"
 ```
@@ -89,19 +108,31 @@ make run QEMU_EXTRA="-device qemu-xhci -device usb-host,vendorid=0x08bb,producti
 With `NET` enabled QEMU user mode networking is used (`udhcpc` gets `10.0.2.15`).
 
 To leave the system type `reboot`: QEMU runs with `-no-reboot`, so it exits
-instead of restarting. (`poweroff` cannot switch off the VM, the kernel has no ACPI.)
+instead of restarting. With the ACPI option `poweroff` works too.
+With the serial console leave QEMU with `Ctrl-A X`.
 
-- Run manually with bridged network
+- Run manually with bridged network (persistent disk)
 ```
 qemu-system-x86_64 -m 30 -no-reboot \
   -kernel build/kernel/arch/x86/boot/bzImage \
-  -initrd build/initramfs.cpio \
+  -initrd build/initramfs.cpio.xz \
   -drive file=disk.img,format=raw,if=virtio \
   -append "notsc squashfs_dev=/dev/vda1 rw_dev=/dev/vda2" \
   -device qemu-xhci -device usb-host,vendorid=0x08bb,productid=0x2902 \
   -netdev bridge,id=net0,br=virbr0 \
   -device virtio-net-pci,netdev=net0,mac=52:54:00:12:34:56
 ```
+
+### Run with VirtualBox
+Select `Target platform: VirtualBox (ISO)` in `make menuconfig`, then:
+```shell
+make iso      # build/smallham.iso (+ build/disk.vmdk with the persistent disk)
+```
+VM settings:
+- Type: Linux, 64-bit; memory: 32 MB is enough
+- Optical drive (IDE): `build/smallham.iso`, boot from it
+- Persistent disk: add a **VirtIO SCSI** storage controller and attach `build/disk.vmdk` to it
+- Network: adapter type **Paravirtualized Network (virtio-net)**
 
 ### How to
 
@@ -157,13 +188,6 @@ sudo mount -o ro /dev/loop0p1 /mnt   # squashfs (read-only root)
 sudo mount /dev/loop0p2 /mnt         # ext2 (overlay upper layer: rw_root/)
 ```
 #### Linux commands
-###### Filesystem
-```shell
-# find connected disk and create partition
-fdisk -l
-# create ext4 fs
-mke2fs /dev/vda1
-```
 ###### Soundcard
 ```shell
 ls -la /sys/class/sound/ 
@@ -190,10 +214,7 @@ https://bellard.org/tcc/
 
 # TODO's
 - Bootchart optimalization
-- Fix poweroff (needs ACPI; until then use `reboot`, QEMU exits because of `-no-reboot`)
-- Config module size optimalization
-- USB modules->kernel/fs/nls/nls_base.ko->utf16s_to_utf8s() thinking
-- Testing all module
+- Testing all drivers
 - Testing direwolf communication
 - Testing netrom routing
 - Testing digirig connection with direwolf

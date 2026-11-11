@@ -1,5 +1,6 @@
 #!/bin/sh
 # Bring up interfaces from /etc/network/interfaces.
 
-touch /var/run/ifstate
+# /var/run lives on the persistent overlay: reset stale state from the last boot
+: > /var/run/ifstate
 ifup -a && echo "Network interfaces up"

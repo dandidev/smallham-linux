@@ -7,7 +7,6 @@ include packages/lib-ax25.mk
 AX25_APPS_REPO := https://github.com/dandidev/ax25-apps.git
 AX25_APPS_SRC := $(SOURCES)/ax25-apps
 AX25_APPS_PREFIX := $(BUILD)/ax25-apps
-AX25_APPS_INITROOT := $(SQUASHFS_DIR)/usr/bin
 AX25_APPS_PREPARED := $(STAMP)/ax25-apps.prepared
 AX25_APPS_INSTALLED := $(STAMP)/ax25-apps.installed
 
@@ -41,7 +40,6 @@ $(AX25_APPS_INSTALLED): ax25-tools ncurses $(AX25_APPS_PREPARED)
 		./configure --prefix=/usr --enable-static
 	$(MAKE) -C $(AX25_APPS_SRC)
 	$(MAKE) -C $(AX25_APPS_SRC) DESTDIR=$(AX25_APPS_PREFIX) install
-	@mkdir -p $(AX25_APPS_INITROOT)
 	@touch $@
 
 ax25-apps: $(AX25_APPS_INSTALLED)

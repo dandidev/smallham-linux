@@ -59,10 +59,10 @@ static void read_cmdline(void)
     cmdline[n] = '\0';
 }
 
-/* Return the value of a whole-word "key=value" token, or NULL. */
-static const char *get_cmdline_arg(const char *key)
+/* Copy the value of a whole-word "key=value" token into value[size].
+ * Returns value, or NULL if the key is not present. */
+static const char *get_cmdline_arg(const char *key, char *value, size_t size)
 {
-    static char value[128];
     size_t klen = strlen(key);
     const char *p = cmdline;
 
@@ -72,8 +72,8 @@ static const char *get_cmdline_arg(const char *key)
         const char *end = p + strcspn(p, " \n");
         if ((size_t)(end - p) > klen && !strncmp(p, key, klen) && p[klen] == '=') {
             size_t vlen = end - (p + klen + 1);
-            if (vlen >= sizeof(value))
-                vlen = sizeof(value) - 1;
+            if (vlen >= size)
+                vlen = size - 1;
             memcpy(value, p + klen + 1, vlen);
             value[vlen] = '\0';
             return value;
@@ -103,12 +103,14 @@ int main(void)
     do_mount("proc", "/proc", "proc", 0, NULL);
     read_cmdline();
 
-    const char *ro_dev = get_cmdline_arg("squashfs_dev");
+    char ro_buf[128], rw_buf[128];
+
+    const char *ro_dev = get_cmdline_arg("squashfs_dev", ro_buf, sizeof(ro_buf));
     if (!ro_dev)
         fatal("missing squashfs_dev= on kernel cmdline");
     do_mount(ro_dev, "/ro_root", "squashfs", MS_RDONLY, NULL);
 
-    const char *rw_dev = get_cmdline_arg("rw_dev");
+    const char *rw_dev = get_cmdline_arg("rw_dev", rw_buf, sizeof(rw_buf));
     if (!rw_dev)
         fatal("missing rw_dev= on kernel cmdline");
     do_mount(rw_dev, "/mnt_overlay", "ext2", 0, NULL);

@@ -1,0 +1,7 @@
+# /usr/etc/ax25/axports - AX.25 port definitions
+#
+# name  callsign  speed  paclen  window  description
+#
+# Replace N0CALL with your own callsign, e.g. for a KISS TNC:
+#   kissattach /dev/ttyS0 radio
+radio   N0CALL-1  9600   255     2       KISS port

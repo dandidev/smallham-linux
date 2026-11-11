@@ -1,22 +1,110 @@
 mainmenu "SmallHam Configuration"
 
-menu "Module selection"
+#
+# Everything is off by default: the base image is a kernel and an initramfs
+# with a BusyBox shell. Every option below adds a kernel config fragment
+# (configs/kernel/*.config), BusyBox applets (configs/busybox/*.config),
+# rootfs files (rootfs/*) or packages (packages/*.mk).
+#
 
-config HAM
-    bool "HAM Radio drivers"
+menu "System"
+
+choice
+    prompt "Target platform"
+    default PLATFORM_QEMU
+
+config PLATFORM_QEMU
+    bool "QEMU"
+    help
+      Boot with 'make run'. The persistent disk is a virtio-blk
+      device (/dev/vda).
+
+config PLATFORM_VBOX
+    bool "VirtualBox (ISO)"
+    help
+      'make iso' creates a bootable ISO (and a .vmdk disk with the
+      persistent root). Attach the .vmdk to a "VirtIO SCSI" storage
+      controller (/dev/sda), and use the "virtio-net" network adapter.
+      'make run' boots the same setup in QEMU.
+
+endchoice
+
+choice
+    prompt "Root filesystem"
+    default ROOTFS_INITRAMFS
+
+config ROOTFS_INITRAMFS
+    bool "initramfs only (in RAM)"
+    help
+      The whole system is in the initramfs. No disk and no block layer
+      is needed, changes are lost on reboot.
+
+config ROOTFS_DISK
+    bool "Persistent disk (squashfs + overlay)"
+    help
+      Read-only squashfs root with a writable ext2 overlay on a disk
+      image. A small init (fs_init) in the initramfs mounts it.
+
+endchoice
+
+choice
+    prompt "Console"
+    default CONSOLE_VGA
+
+config CONSOLE_VGA
+    bool "VGA text console and PS/2 keyboard"
+
+config CONSOLE_SERIAL
+    bool "Serial console (ttyS0)"
+    help
+      The console is the first serial port. QEMU runs with -nographic,
+      so the system is used from the terminal.
+
+endchoice
+
+config ACPI_POWEROFF
+    bool "ACPI ('poweroff' switches off the VM)"
+    help
+      Without ACPI 'poweroff' only halts the CPU. Use 'reboot' to
+      leave QEMU instead ('make run' uses -no-reboot).
+
+endmenu
+
+menu "Kernel drivers"
 
 config NET
-    bool "Network drivers (VirtIO) support"
+    bool "Network (virtio-net, IPv4, DHCP)"
 
 config USB
-    bool "USB support (VirtIO)"
+    bool "USB host controllers (xHCI, EHCI)"
+    help
+      For passed through USB devices, e.g.
+      make run QEMU_EXTRA="-device qemu-xhci -device usb-host,vendorid=0x...,productid=0x..."
 
 config USB_STORAGE
-    bool "USB mass storage (VirtIO) support"
+    bool "USB mass storage (with FAT filesystem)"
     depends on USB
 
 config SOUND
-    bool "Sound drivers support"
+    bool "USB sound cards (ALSA)"
+    depends on USB
+
+config HAM
+    bool "Amateur radio protocols (AX.25, NET/ROM, ROSE, KISS, 6PACK)"
+    depends on NET
+
+endmenu
+
+menu "Userspace"
+
+config BB_TOOLS
+    bool "Common tools (grep, sed, find, head, tail, less, top, ...)"
+
+config BB_EDITOR
+    bool "vi editor"
+
+config BB_SYSLOG
+    bool "System log (syslogd, logread)"
 
 endmenu
 
@@ -27,13 +115,13 @@ config AX25_TOOLS
     depends on HAM
 
     config AX25_TOOLS_NETROMD
-        bool "Netorm (netromd)"
+        bool "NET/ROM (netromd)"
         depends on AX25_TOOLS
 
     config AX25_TOOLS_KISS
         bool "Kiss (kissattach kissparms)"
         depends on AX25_TOOLS
-    
+
     config AX25_DEFAULT_CONFIG
         bool "Generate AX.25 default config (/usr/etc/ax25/axports)"
         depends on AX25_TOOLS

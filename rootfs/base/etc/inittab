@@ -1,9 +1,8 @@
 ::sysinit:/bin/mount -t proc proc /proc
 ::sysinit:/bin/mount -t sysfs sysfs /sys
-::sysinit:/bin/mountpoint -q /dev || /bin/mount -t devtmpfs devtmpfs /dev
-
 ::sysinit:/etc/init.d/rcS
 
-::respawn:/bin/getty -n -l /bin/custom-shell.sh 115200 tty1
+# The console device (tty1 or ttyS0) is filled in by 'make rootfs'
+@CONSOLE@::respawn:-/bin/sh
 ::ctrlaltdel:/bin/reboot -f
 ::shutdown:/bin/umount -a -r

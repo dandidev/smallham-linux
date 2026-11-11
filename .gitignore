@@ -5,3 +5,6 @@
 *.img
 *.tar.*
 .vscode
+.config
+.config.old
+defconfig
