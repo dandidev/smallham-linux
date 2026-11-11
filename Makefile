@@ -244,8 +244,18 @@ dbg-vars:
 # --------------------------------------------------------------------
 # Configuration (kconfig-frontends)
 
+# menuconfig edits the minimal form of .config (only the options that differ
+# from the defaults). In the full .config every option has a saved value, and
+# the profiles ('imply') cannot change saved values, so choosing a profile
+# would turn on nothing. The path must be relative: kconfig-frontends 4.11
+# cannot save to an absolute KCONFIG_CONFIG path.
+MENUCONFIG_FILE := build/menuconfig.config
+
 menuconfig:
-	kconfig-mconf $(KCONFIG_FILE)
+	kconfig-conf --savedefconfig=$(MENUCONFIG_FILE) $(KCONFIG_FILE)
+	KCONFIG_CONFIG=$(MENUCONFIG_FILE) kconfig-mconf $(KCONFIG_FILE)
+	kconfig-conf --defconfig=$(MENUCONFIG_FILE) $(KCONFIG_FILE)
+	rm -f $(MENUCONFIG_FILE) $(MENUCONFIG_FILE).old
 
 defconfig:
 	kconfig-conf --defconfig=configs/defconfig $(KCONFIG_FILE)

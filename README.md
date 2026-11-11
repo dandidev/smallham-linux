@@ -107,6 +107,8 @@ make savedefconfig        # save the current selection to ./defconfig
 To keep a selection, copy `./defconfig` to `configs/<name>_defconfig`. Then
 `make <name>_defconfig` loads it.
 
+In `make menuconfig` press `?` to read the help of an option.
+
 How the options are used:
 
 | What | Where | How |
@@ -119,8 +121,16 @@ How the options are used:
 `scripts/check-config.sh` stops the build if an option did not get into the
 final config. This happens with a misspelled option name or a missing dependency.
 
+#### Profile
+A profile turns on a group of options with one choice. You can still turn off
+any option of the group or add others. Your changes are kept when you change
+the profile later.
+- `None` – no group (the base image)
+- `Persistent system` – persistent disk, network, common tools, vi, system log (no ham radio)
+- `Ham radio station` – the same as `make ham_defconfig`
+
 #### System
-- **Image name**: part of the output file names (`base`, `ham`, ...; `custom` if not set)
+- **Image name**: part of the output file names. By default it comes from the profile and the platform (`base`, `persistent`, `ham`, with `-vbox` for VirtualBox)
 - **Target platform**: `QEMU` (disk: virtio-blk, `/dev/vda`) or `VirtualBox (ISO)` (disk: VirtIO SCSI, `/dev/sda`)
 - **Root filesystem**:
   - `initramfs only`: the whole system is in RAM, changes are lost on reboot

@@ -1,3 +1,2 @@
 # Base image: kernel + initramfs with a BusyBox shell, nothing else.
-# All other options are at their defaults (QEMU, initramfs only, VGA console).
-CONFIG_IMAGE_NAME="base"
+# All options are at their defaults (QEMU, initramfs only, VGA console).

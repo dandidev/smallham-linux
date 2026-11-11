@@ -6,21 +6,84 @@ mainmenu "SmallHam Configuration"
 # (configs/kernel/*.config), BusyBox applets (configs/busybox/*.config),
 # rootfs files (rootfs/*) or packages (packages/*.mk).
 #
+# A profile turns on a group of options with 'imply': the options are on by
+# default, but each of them can still be turned off.
+#
+
+menu "Profile"
+
+choice
+    prompt "Profile"
+    default PROFILE_NONE
+    help
+      A profile turns on a group of options at once. After choosing a
+      profile you can still turn off any of its options, or add others.
+
+config PROFILE_NONE
+    bool "None (choose every option yourself)"
+    help
+      No group of options is turned on. Without other options this is
+      the base image: a kernel and a BusyBox shell in RAM.
+
+config PROFILE_PERSISTENT
+    bool "Persistent system (no ham radio)"
+    imply NET
+    imply BB_TOOLS
+    imply BB_EDITOR
+    imply BB_SYSLOG
+    help
+      A small system on a disk image that keeps your changes, with
+      network, common tools, vi and a system log. Root filesystem:
+      Persistent disk.
+
+config PROFILE_HAM
+    bool "Ham radio station"
+    imply NET
+    imply USB
+    imply SOUND
+    imply HAM
+    imply BB_TOOLS
+    imply BB_EDITOR
+    imply BB_SYSLOG
+    imply AX25_TOOLS
+    imply AX25_TOOLS_NETROMD
+    imply AX25_TOOLS_KISS
+    imply AX25_APPS
+    imply AX25_APPS_CALL
+    imply DIREWOLF
+    help
+      Everything for a ham radio station: persistent disk, network,
+      USB sound card, AX.25 in the kernel, the AX.25 tools and Dire Wolf.
+      This is the same as 'make ham_defconfig'.
+
+endchoice
+
+endmenu
 
 menu "System"
 
 config IMAGE_NAME
     string "Image name (part of the output file names)"
-    default "custom"
+    default "ham-vbox" if PROFILE_HAM && PLATFORM_VBOX
+    default "ham" if PROFILE_HAM
+    default "persistent-vbox" if PROFILE_PERSISTENT && PLATFORM_VBOX
+    default "persistent" if PROFILE_PERSISTENT
+    default "base-vbox" if PLATFORM_VBOX
+    default "base"
     help
       The output files in build/out/ are named
       smallham-<image name>-x86_64-..., e.g. smallham-ham-x86_64.iso.
-      The defconfigs set it (base, ham). It can also be given on the
-      command line: make IMAGE_NAME=test
+      By default the name comes from the profile and the platform
+      (base, ham, persistent, with -vbox for VirtualBox). You can type
+      your own name here, or give it on the command line:
+      make IMAGE_NAME=test
 
 choice
     prompt "Target platform"
     default PLATFORM_QEMU
+    help
+      The virtual machine the system runs in. It decides the disk
+      driver and the device names on the kernel command line.
 
 config PLATFORM_QEMU
     bool "QEMU"
@@ -40,7 +103,11 @@ endchoice
 
 choice
     prompt "Root filesystem"
+    default ROOTFS_DISK if PROFILE_PERSISTENT || PROFILE_HAM
     default ROOTFS_INITRAMFS
+    help
+      Where the system lives: only in RAM, or on a disk image that
+      keeps your changes.
 
 config ROOTFS_INITRAMFS
     bool "initramfs only (in RAM)"
@@ -53,15 +120,20 @@ config ROOTFS_DISK
     help
       Read-only squashfs root with a writable ext2 overlay on a disk
       image. A small init (fs_init) in the initramfs mounts it.
+      Needs more RAM than the initramfs only system (about 20 MB to boot).
 
 endchoice
 
 choice
     prompt "Console"
     default CONSOLE_VGA
+    help
+      Where the boot messages and the shell appear.
 
 config CONSOLE_VGA
     bool "VGA text console and PS/2 keyboard"
+    help
+      The normal screen and keyboard of the virtual machine.
 
 config CONSOLE_SERIAL
     bool "Serial console (ttyS0)"
@@ -83,24 +155,40 @@ menu "Kernel drivers"
 
 config NET
     bool "Network (virtio-net, IPv4, DHCP)"
+    help
+      Network card of the virtual machine (virtio-net) and IPv4.
+      eth0 gets an address with DHCP at boot (ifup, udhcpc).
+      Also adds the ip and ping commands.
 
 config USB
     bool "USB host controllers (xHCI, EHCI)"
     help
-      For passed through USB devices, e.g.
+      For USB devices passed to the virtual machine, e.g.
       make run QEMU_EXTRA="-device qemu-xhci -device usb-host,vendorid=0x...,productid=0x..."
+      Also adds the lsusb command.
 
 config USB_STORAGE
     bool "USB mass storage (with FAT filesystem)"
     depends on USB
+    help
+      USB drives (pen drives, card readers). FAT/VFAT filesystems can
+      be mounted.
 
 config SOUND
     bool "USB sound cards (ALSA)"
     depends on USB
+    help
+      USB sound cards, e.g. the sound interface of a radio.
+      /proc/asound shows the cards.
 
 config HAM
     bool "Amateur radio protocols (AX.25, NET/ROM, ROSE, KISS, 6PACK)"
     depends on NET
+    help
+      AX.25, NET/ROM and ROSE network protocols, and drivers for
+      TNCs: KISS (mkiss), 6PACK, BPQ (AX.25 over Ethernet), Baycom and
+      YAM. Also pseudo terminals, for KISS between programs
+      (e.g. Dire Wolf and kissattach).
 
 endmenu
 
@@ -108,12 +196,20 @@ menu "Userspace"
 
 config BB_TOOLS
     bool "Common tools (grep, sed, find, head, tail, less, top, ...)"
+    help
+      Text and file tools of BusyBox. Without them the shell has only
+      the basic commands (ls, cp, mv, cat, mount, ps, ...).
 
 config BB_EDITOR
     bool "vi editor"
+    help
+      The vi text editor of BusyBox.
 
 config BB_SYSLOG
     bool "System log (syslogd, logread)"
+    help
+      Collects the messages of programs in memory. Read them with
+      'logread'.
 
 endmenu
 
@@ -122,46 +218,75 @@ menu "Extras"
 config AX25_TOOLS
     bool "AX.25 Tools (e.g. axctl, kissattach)"
     depends on HAM
+    help
+      Programs to set up AX.25 ports and interfaces. Choose the
+      programs below.
 
     config AX25_TOOLS_NETROMD
         bool "NET/ROM (netromd)"
         depends on AX25_TOOLS
+        help
+          NET/ROM routing daemon.
 
     config AX25_TOOLS_KISS
         bool "Kiss (kissattach kissparms)"
         depends on AX25_TOOLS
+        help
+          kissattach connects a KISS TNC (serial port or pseudo
+          terminal) to an AX.25 interface. kissparms sets its
+          parameters.
 
     config AX25_DEFAULT_CONFIG
         bool "Generate AX.25 default config (/usr/etc/ax25/axports)"
         depends on AX25_TOOLS
+        help
+          Installs an example axports file with one port. Change the
+          callsign N0CALL to yours.
 
 config AX25_APPS
     bool "AX.25 Applications (e.g. listen, beacon)"
     depends on AX25_TOOLS
+    help
+      User programs for AX.25. Choose the programs below.
 
     config AX25_APPS_CALL
         bool "Call (call)"
         depends on AX25_APPS
+        help
+          Connect to another station over AX.25, NET/ROM or ROSE.
 
     config AX25_APPS_LISTEN
         bool "Listen (listen)"
         depends on AX25_APPS
+        help
+          Show the AX.25 traffic of the interfaces.
 
     config AX25_APPS_IPD
         bool "IP daemon (ax25ipd)"
         depends on AX25_APPS
+        help
+          Sends AX.25 frames over IP (AX.25 over the internet).
 
 config DIREWOLF
     bool "Direwolf"
     depends on SOUND
     depends on NET
+    help
+      Dire Wolf, a sound card modem and TNC. Together with a USB sound
+      card it sends and receives packet radio. It offers KISS on a
+      pseudo terminal (-p) and on TCP port 8001.
 
     config DIREWOLF_DEFAULT_CONFIG
         bool "Generate default config (/etc/direwolf.conf)"
         depends on DIREWOLF
+        help
+          Installs an example /etc/direwolf.conf (1200 baud, first USB
+          sound card). Change MYCALL N0CALL to your callsign.
 
 config ALSA_UTILS_APLAY
     bool "aplay"
     depends on SOUND
+    help
+      Plays sound files, to test the sound card.
 
 endmenu
