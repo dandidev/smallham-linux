@@ -5,6 +5,11 @@
 # (Not in inittab: BusyBox init runs such lines as 'exec cmd', so '||' would not work.)
 mountpoint -q /dev || mount -t devtmpfs devtmpfs /dev
 
+# pseudo terminals (only if the kernel has them; no grep in the base image)
+case "$(cat /proc/filesystems)" in
+    *devpts*) mkdir -p /dev/pts && mount -t devpts devpts /dev/pts ;;
+esac
+
 mkdir -p /var/run /var/log /tmp
 
 if command -v syslogd >/dev/null; then

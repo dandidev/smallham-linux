@@ -10,9 +10,11 @@ AX25_APPS_PREFIX := $(BUILD)/ax25-apps
 AX25_APPS_PREPARED := $(STAMP)/ax25-apps.prepared
 AX25_APPS_INSTALLED := $(STAMP)/ax25-apps.installed
 
-AX25_APPS_CPPFLAGS := "-I$(LIB_AX25_PREFIX)/usr/include -I$(LINUX_HEADERS_DIR)/include"
+# _GNU_SOURCE: see ax25-tools.mk
+AX25_APPS_CPPFLAGS := "-D_GNU_SOURCE -I$(LIB_AX25_PREFIX)/usr/include -I$(NCURSES_PREFIX)/usr/include -I$(LINUX_HEADERS_DIR)/include"
 AX25_APPS_LDFLAGS := "-L$(LIB_AX25_PREFIX)/usr/lib -L$(NCURSES_PREFIX)/usr/lib -static"
-AX25_APPS_CFLAGS := "-Os"
+# see ax25-tools.mk
+AX25_APPS_CFLAGS := "-Os -Wno-error=incompatible-pointer-types"
 
 # --------------------------------------------------------------------
 
@@ -28,12 +30,14 @@ $(AX25_APPS_PREPARED):
 	git clone --depth 1 $(AX25_APPS_REPO) $(AX25_APPS_SRC) || true
 	@touch $@
 
-$(AX25_APPS_INSTALLED): ax25-tools ncurses $(AX25_APPS_PREPARED)
+$(AX25_APPS_INSTALLED): ax25-tools ncurses $(AX25_APPS_PREPARED) | musl
+	rm -rf $(AX25_APPS_PREFIX)
 	@mkdir -p $(AX25_APPS_PREFIX)
-	cd $(AX25_APPS_SRC) && git checkout -- ax25ipd/io.c && \
-		git apply $(abspath patches/ax25-apps-termio.patch)
+	cd $(AX25_APPS_SRC) && git checkout -- . && git clean -fdxq && \
+		git apply $(abspath patches/ax25-apps-termio.patch) $(abspath patches/ax25-apps-musl.patch)
 	cd $(AX25_APPS_SRC) && autoreconf --install --force
 	cd $(AX25_APPS_SRC) && \
+		CC=$(MUSL_CC) \
 		CPPFLAGS=$(AX25_APPS_CPPFLAGS) \
 		LDFLAGS=$(AX25_APPS_LDFLAGS) \
 		CFLAGS=$(AX25_APPS_CFLAGS) \

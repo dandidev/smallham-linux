@@ -1,0 +1,13 @@
+diff --git a/call/call.h b/call/call.h
+index 68bb5d6..a876114 100644
+--- a/call/call.h
++++ b/call/call.h
+@@ -4,6 +4,8 @@
+ #ifndef TRUE
+ #define	TRUE	1
+ #endif
++#include <time.h>
++
+ extern int fd;
+ extern volatile int interrupted;
+ extern int paclen;

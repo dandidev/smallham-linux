@@ -20,10 +20,13 @@ $(LIB_AX25_PREPARED):
 	git clone --depth 1 $(LIB_AX25_REPO) $(LIB_AX25_SRC) || true
 	@touch $@
 
-$(LIB_AX25_INSTALLED): $(LIB_AX25_PREPARED) | kernel-headers
+$(LIB_AX25_INSTALLED): $(LIB_AX25_PREPARED) | musl kernel-headers
+	rm -rf $(LIB_AX25_PREFIX)
 	@mkdir -p $(LIB_AX25_PREFIX)
+	cd $(LIB_AX25_SRC) && git clean -fdxq
 	cd $(LIB_AX25_SRC) && autoreconf -fi
 	cd $(LIB_AX25_SRC) && \
+		CC=$(MUSL_CC) \
 		CFLAGS=$(LIB_AX25_CFLAGS) \
 		LDFLAGS=$(LIB_AX25_LDFLAGS) \
 		./configure --prefix=/usr --enable-static

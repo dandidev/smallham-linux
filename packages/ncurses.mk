@@ -16,9 +16,10 @@ $(NCURSES_PREPARED):
 	curl -L $(NCURSES_URL) | tar xz -C $(SOURCES)
 	@touch $@
 
-$(NCURSES_INSTALLED): $(NCURSES_PREPARED)
-#	cd $(NCURSES_SRC) && make distclean || true
-	cd $(NCURSES_SRC) && ./configure --prefix=/usr --enable-widec --enable-static --disable-shared --with-normal --without-debug \
+$(NCURSES_INSTALLED): $(NCURSES_PREPARED) | musl kernel-headers
+	rm -rf $(NCURSES_PREFIX)
+	cd $(NCURSES_SRC) && { make distclean > /dev/null 2>&1 || true; }
+	cd $(NCURSES_SRC) && CC=$(MUSL_CC) CFLAGS="-Os" ./configure --prefix=/usr --enable-widec --enable-static --disable-shared --with-normal --without-debug \
 	  --without-cxx --without-cxx-binding --without-progs --without-tests --without-manpages
 	cd $(NCURSES_SRC) && make
 	cd $(NCURSES_SRC) && make install.libs install.includes DESTDIR=$(NCURSES_PREFIX)

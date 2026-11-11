@@ -9,9 +9,12 @@ AX25_TOOLS_PREFIX := $(BUILD)/ax25-tools
 AX25_TOOLS_PREPARED := $(STAMP)/ax25-tools.prepared
 AX25_TOOLS_INSTALLED := $(STAMP)/ax25-tools.installed
 
-AX25_TOOLS_CPPFLAGS := "-I$(LIB_AX25_PREFIX)/usr/include -I$(LINUX_HEADERS_DIR)/include"
+# _GNU_SOURCE: musl defines BSD types (caddr_t, ...) only on request
+AX25_TOOLS_CPPFLAGS := "-D_GNU_SOURCE -I$(LIB_AX25_PREFIX)/usr/include -I$(LINUX_HEADERS_DIR)/include"
 AX25_TOOLS_LDFLAGS := "-L$(LIB_AX25_PREFIX)/usr/lib -static"
-AX25_TOOLS_CFLAGS := "-Os"
+# musl declares sockaddr arguments as plain struct sockaddr * (glibc uses a
+# transparent union), the old code passes sockaddr_in * etc. without a cast
+AX25_TOOLS_CFLAGS := "-Os -Wno-error=incompatible-pointer-types"
 
 # --------------------------------------------------------------------
 
@@ -27,10 +30,19 @@ $(AX25_TOOLS_PREPARED):
 	git clone --depth 1 $(AX25_TOOLS_REPO) $(AX25_TOOLS_SRC) || true
 	@touch $@
 
-$(AX25_TOOLS_INSTALLED): lib-ax25 $(AX25_TOOLS_PREPARED) | ncurses
+# Only the subdirectories with programs selectable in Kconfig are built.
+# The others (tcpip, dmascc, yamdrv, ...) are legacy hardware/gateway tools,
+# and some of them do not compile with musl (e.g. <protocols/talkd.h>).
+AX25_TOOLS_SUBDIRS := ax25 kiss netrom
+
+$(AX25_TOOLS_INSTALLED): lib-ax25 $(AX25_TOOLS_PREPARED) | musl ncurses
+	rm -rf $(AX25_TOOLS_PREFIX)
 	@mkdir -p $(AX25_TOOLS_PREFIX)
+	cd $(AX25_TOOLS_SRC) && git checkout -q -- . && git clean -fdxq
+	sed -i 's/^SUBDIRS = .*/SUBDIRS = $(AX25_TOOLS_SUBDIRS)/' $(AX25_TOOLS_SRC)/Makefile.am
 	cd $(AX25_TOOLS_SRC) && libtoolize --force --copy && aclocal && autoheader && automake --add-missing && autoconf
 	cd $(AX25_TOOLS_SRC) && \
+		CC=$(MUSL_CC) \
 		CPPFLAGS=$(AX25_TOOLS_CPPFLAGS) \
 		LDFLAGS=$(AX25_TOOLS_LDFLAGS) \
 		CFLAGS=$(AX25_TOOLS_CFLAGS) \
