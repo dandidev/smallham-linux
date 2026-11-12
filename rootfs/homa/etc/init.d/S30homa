@@ -1,0 +1,8 @@
+#!/bin/sh
+# Load the Homa transport protocol module (not in the mainline kernel yet).
+
+insmod /lib/modules/homa.ko && echo "Homa module loaded"
+
+# Homa programs map a large receive buffer (64 MB in the test programs) but
+# use only a small part of it. Without overcommit a small VM refuses the map.
+echo 1 > /proc/sys/vm/overcommit_memory

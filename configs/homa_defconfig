@@ -1,0 +1,3 @@
+# Homa test system: kernel 6.17, Homa module and test programs, network,
+# persistent disk, serial console.
+CONFIG_PROFILE_HOMA=y

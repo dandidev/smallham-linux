@@ -1,0 +1,54 @@
+diff --git a/homa_offload.c b/homa_offload.c
+index 5516a45..678d356 100644
+--- a/homa_offload.c
++++ b/homa_offload.c
+@@ -79,7 +79,9 @@ int homa_offload_end(void)
+  */
+ void homa_set_softirq_cpu(struct sk_buff *skb, int cpu)
+ {
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(7, 1, 0)
++#ifndef CONFIG_RPS
++	/* Without RPS (single CPU kernel) there is nothing to steer. */
++#elif LINUX_VERSION_CODE < KERNEL_VERSION(7, 1, 0)
+ 	struct rps_sock_flow_table *sock_flow_table;
+ 	u32 hash, index;
+ 
+diff --git a/homa_peer.c b/homa_peer.c
+index 73e09c4..6409858 100644
+--- a/homa_peer.c
++++ b/homa_peer.c
+@@ -8,6 +8,7 @@
+ #include "homa_peer.h"
+ #include "homa_rpc.h"
+ 
++#include <linux/jhash.h>
+ #include <linux/xxhash.h>
+ 
+ #ifdef __UNIT_TEST__
+@@ -30,7 +31,12 @@
+ /* Wrapper to allow xxhash to be used as rhashtable hash function. */
+ static u32 xxh32_hash(const void *data, u32 len, u32 seed)
+ {
++#if IS_ENABLED(CONFIG_XXHASH)
+ 	return xxh32(data, len, seed);
++#else
++	/* xxhash is only in kernels where another option selects it. */
++	return jhash(data, len, seed);
++#endif
+ }
+ 
+ const struct rhashtable_params peer_ht_params = {
+diff --git a/homa_peer.h b/homa_peer.h
+index e3a6386..b813038 100644
+--- a/homa_peer.h
++++ b/homa_peer.h
+@@ -532,7 +532,9 @@ static inline void homa_route_key_init(struct homa_route_key *key,
+ 		key->saddr = hsk->inet.pinet6->saddr;
+ 	key->daddr = *daddr;
+ 	key->hnet = hsk->hnet;
++#ifdef CONFIG_XFRM
+ 	key->sk_policy_out = rcu_dereference(hsk->sock.sk_policy[XFRM_POLICY_OUT]);
++#endif
+ 	key->uid = hsk->sock.sk_uid;
+ 	key->mark = hsk->sock.sk_mark;
+ 	flowic.flowic_secid = 0;
