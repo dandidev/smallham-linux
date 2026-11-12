@@ -35,7 +35,15 @@ elif [ "$HOMA_IMAGE-disk.img" -nt "$disk" ]; then
     echo "Note: the image was rebuilt. Delete $disk to use the new one (your files on it are lost)."
 fi
 
-exec qemu-system-x86_64 -m "$HOMA_MEM" -no-reboot -nographic \
+# KVM: the VM runs on the CPU, not in the QEMU emulator (much faster)
+if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+    accel=-enable-kvm
+else
+    accel=
+    echo "Note: no access to /dev/kvm, the VM runs without KVM (slow)."
+fi
+
+exec qemu-system-x86_64 $accel -m "$HOMA_MEM" -no-reboot -nographic \
     -kernel "$HOMA_IMAGE-bzImage" -initrd "$HOMA_IMAGE-initramfs.cpio.xz" \
     -append "$HOMA_CMDLINE" \
     -drive file="$disk",format=raw,if=virtio \
