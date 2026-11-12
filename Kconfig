@@ -56,6 +56,20 @@ config PROFILE_HAM
       USB sound card, AX.25 in the kernel, the AX.25 tools and Dire Wolf.
       This is the same as 'make ham_defconfig'.
 
+config PROFILE_HOMA
+    bool "Homa test system (experimental)"
+    imply NET
+    imply BB_TOOLS
+    imply BB_EDITOR
+    imply BB_SYSLOG
+    imply HOMA
+    imply HOMA_UTILS
+    help
+      A system for trying the Homa transport protocol: kernel 6.17 with
+      the Homa module, its test programs, network, common tools, vi and
+      a system log, on a persistent disk (your files are kept), with a
+      serial console. This is the same as 'make homa_defconfig'.
+
 endchoice
 
 endmenu
@@ -68,15 +82,39 @@ config IMAGE_NAME
     default "ham" if PROFILE_HAM
     default "persistent-vbox" if PROFILE_PERSISTENT && PLATFORM_VBOX
     default "persistent" if PROFILE_PERSISTENT
+    default "homa-vbox" if (PROFILE_HOMA || HOMA) && PLATFORM_VBOX
+    default "homa" if PROFILE_HOMA || HOMA
     default "base-vbox" if PLATFORM_VBOX
     default "base"
     help
       The output files in build/out/ are named
       smallham-<image name>-x86_64-..., e.g. smallham-ham-x86_64.iso.
       By default the name comes from the profile and the platform
-      (base, ham, persistent, with -vbox for VirtualBox). You can type
+      (base, ham, persistent, homa, with -vbox for VirtualBox). You can type
       your own name here, or give it on the command line:
       make IMAGE_NAME=test
+
+choice
+    prompt "Kernel version"
+    default KERNEL_6_17 if PROFILE_HOMA
+    default KERNEL_6_6
+    help
+      The Linux kernel the system is built with.
+
+config KERNEL_6_6
+    bool "6.6 (long term support)"
+    help
+      Linux 6.6.162, a long term support kernel. All images are
+      tested with it.
+
+config KERNEL_6_17
+    bool "6.17 (for Homa)"
+    help
+      Linux 6.17.8, the kernel the Homa transport protocol is
+      developed on. Not a long term support kernel; choose it only
+      to try Homa.
+
+endchoice
 
 choice
     prompt "Target platform"
@@ -103,7 +141,7 @@ endchoice
 
 choice
     prompt "Root filesystem"
-    default ROOTFS_DISK if PROFILE_PERSISTENT || PROFILE_HAM
+    default ROOTFS_DISK if PROFILE_PERSISTENT || PROFILE_HAM || PROFILE_HOMA
     default ROOTFS_INITRAMFS
     help
       Where the system lives: only in RAM, or on a disk image that
@@ -126,6 +164,7 @@ endchoice
 
 choice
     prompt "Console"
+    default CONSOLE_SERIAL if PROFILE_HOMA
     default CONSOLE_VGA
     help
       Where the boot messages and the shell appear.
@@ -282,6 +321,25 @@ config DIREWOLF
         help
           Installs an example /etc/direwolf.conf (1200 baud, first USB
           sound card). Change MYCALL N0CALL to your callsign.
+
+config HOMA
+    bool "Homa transport protocol (experimental)"
+    depends on NET
+    depends on KERNEL_6_17
+    help
+      Homa, a low latency RPC transport protocol for data centers
+      (https://github.com/PlatformLab/HomaModule). It is not in the
+      mainline kernel yet: it is built as a loadable module (homa.ko)
+      and loaded at boot. Also adds IPv6, which Homa needs.
+      Needs the 6.17 kernel.
+
+    config HOMA_UTILS
+        bool "Homa test programs (homa_test, cp_node, ...)"
+        depends on HOMA
+        help
+          The test and benchmark programs of Homa, statically linked
+          (C++, so they are much larger than the other programs).
+          Run them between two virtual machines, see the README.
 
 config ALSA_UTILS_APLAY
     bool "aplay"

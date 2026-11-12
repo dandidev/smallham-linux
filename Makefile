@@ -34,18 +34,22 @@ $(shell mkdir -p $(SOURCES) $(BUILD) $(PREFIX) $(STAMP) $(OUT))
 
 # --------------------------------------------------------------------
 
+ifeq ($(CONFIG_KERNEL_6_17),y)
+KERNEL_VERSION := 6.17.8
+else
 KERNEL_VERSION := 6.6.162
+endif
 KERNEL_TARBALL := linux-$(KERNEL_VERSION).tar.xz
 KERNEL_URL := https://cdn.kernel.org/pub/linux/kernel/v6.x/$(KERNEL_TARBALL)
 KERNEL_SRC := $(SOURCES)/linux-$(KERNEL_VERSION)
-KERNEL_BUILD := $(BUILD)/kernel
+KERNEL_BUILD := $(BUILD)/kernel-$(KERNEL_VERSION)
 KERNEL_PREPARED := $(STAMP)/kernel-$(KERNEL_VERSION).prepared
 KERNEL_CONFIGURED := $(STAMP)/kernel-$(KERNEL_VERSION).configured
 KERNEL_FRAGMENT := $(BUILD)/kernel.fragment
 BZIMAGE := $(KERNEL_BUILD)/arch/x86/boot/bzImage
 OUT_BZIMAGE := $(OUT)/$(OUT_NAME)-bzImage
 
-LINUX_HEADERS_DIR := $(PREFIX)/linux-headers
+LINUX_HEADERS_DIR := $(PREFIX)/linux-headers-$(KERNEL_VERSION)
 LINUX_HEADERS_INSTALLED := $(STAMP)/linux-headers-$(KERNEL_VERSION).installed
 
 BUSYBOX_VERSION := 1.37.0
@@ -151,6 +155,12 @@ ifeq ($(CONFIG_HAM),y)
 KERNEL_FRAGMENTS += ham
 endif
 
+ifeq ($(CONFIG_HOMA),y)
+KERNEL_FRAGMENTS += homa
+BUSYBOX_FRAGMENTS += modules
+ROOTFS_OVERLAYS += homa
+endif
+
 ifeq ($(CONFIG_BB_TOOLS),y)
 BUSYBOX_FRAGMENTS += tools
 endif
@@ -233,6 +243,7 @@ extras: $(BUILD_PKGS)
 
 dbg-vars:
 	@echo "OUTPUT            = $(OUT)/$(OUT_NAME)*"
+	@echo "KERNEL_VERSION    = $(KERNEL_VERSION)"
 	@echo "KERNEL_FRAGMENTS  = $(KERNEL_FRAGMENT_FILES)"
 	@echo "BUSYBOX_FRAGMENTS = $(BUSYBOX_FRAGMENT_FILES)"
 	@echo "ROOTFS_OVERLAYS   = $(ROOTFS_OVERLAYS)"
@@ -479,7 +490,7 @@ endif
 
 # --------------------------------------------------------------------
 
-clean: alsa-lib-clean alsa-utils-clean musl-clean ncurses-clean direwolf-clean libudev-zero-clean ax25-apps-clean ax25-tools-clean lib-ax25-clean
+clean: homa-clean alsa-lib-clean alsa-utils-clean musl-clean ncurses-clean direwolf-clean libudev-zero-clean ax25-apps-clean ax25-tools-clean lib-ax25-clean
 	rm -rf $(LINUX_HEADERS_DIR)
 	rm -rf $(KERNEL_SRC) $(SOURCES)/$(KERNEL_TARBALL)
 	rm -rf $(BUSYBOX_SRC) $(SOURCES)/$(BUSYBOX_TARBALL)

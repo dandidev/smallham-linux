@@ -33,8 +33,9 @@ simulate repeater stations or radio towers on ordinary computers.
 |---|---|---|
 | Base image (`defconfig`) | about 2 GB | about 1.8 GB |
 | Ham radio setup (`ham_defconfig`) | about 2.5 GB | about 2.1 GB |
+| Homa test system (`homa_defconfig`, kernel 6.17) | about 2.2 GB | about 1.9 GB |
 
-Most of it is the kernel source (1.5 GB). The images themselves are only a few MB.
+Most of it is the kernel source (1.5–1.7 GB, for each kernel version). The images themselves are only a few MB.
 
 Packages (Arch Linux):
 ```shell
@@ -101,6 +102,7 @@ make defconfig            # base image (used when there is no .config)
 make ham_defconfig        # ham radio setup: disk, network, USB sound, AX.25, Dire Wolf
 make base_vbox_defconfig  # base image for VirtualBox (ISO)
 make ham_vbox_defconfig   # ham radio setup for VirtualBox (ISO + disk)
+make homa_defconfig       # Homa test system: kernel 6.17, Homa, persistent disk (experimental)
 make menuconfig           # add or remove features
 make savedefconfig        # save the current selection to ./defconfig
 ```
@@ -113,7 +115,7 @@ How the options are used:
 
 | What | Where | How |
 |---|---|---|
-| Kernel | `configs/kernel/*.config` | starts with everything off (`allnoconfig`), then adds the files of the selected options; all drivers are built in (no modules) |
+| Kernel | `configs/kernel/*.config` | starts with everything off (`allnoconfig`), then adds the files of the selected options; all drivers are built in (no modules, except Homa) |
 | BusyBox | `configs/busybox/*.config` | the same way as the kernel |
 | Root filesystem | `rootfs/<name>/` | the selected directories are copied over each other (`base` always) |
 | Programs | `packages/*.mk` | built with musl and copied to the root filesystem |
@@ -128,9 +130,11 @@ the profile later.
 - `None` – no group (the base image)
 - `Persistent system` – persistent disk, network, common tools, vi, system log (no ham radio)
 - `Ham radio station` – the same as `make ham_defconfig`
+- `Homa test system` – kernel 6.17, the Homa module and its test programs, network, common tools, vi, system log, persistent disk, serial console; the same as `make homa_defconfig`
 
 #### System
-- **Image name**: part of the output file names. By default it comes from the profile and the platform (`base`, `persistent`, `ham`, with `-vbox` for VirtualBox)
+- **Image name**: part of the output file names. By default it comes from the profile and the platform (`base`, `persistent`, `ham`, `homa`, with `-vbox` for VirtualBox)
+- **Kernel version**: `6.6` (long term support, the default) or `6.17` (only for Homa)
 - **Target platform**: `QEMU` (disk: virtio-blk, `/dev/vda`) or `VirtualBox (ISO)` (disk: VirtIO SCSI, `/dev/sda`)
 - **Root filesystem**:
   - `initramfs only`: the whole system is in RAM, changes are lost on reboot
@@ -152,6 +156,7 @@ the profile later.
 
 #### Extras
 - AX.25 tools (`kissattach`, `kissparms`, `netromd`), AX.25 apps (`call`, `listen`, `ax25ipd`), Dire Wolf, `aplay`
+- `HOMA` – the Homa transport protocol (experimental, needs kernel 6.17), and its test programs (`HOMA_UTILS`)
 - Default config files, if you want them: `/usr/etc/ax25/axports`, `/etc/direwolf.conf`
 
 ### Adding a kernel feature
@@ -336,6 +341,14 @@ dhcp-range=192.168.122.100,192.168.122.150,12h
 dhcp-option=3,192.168.122.1
 dhcp-option=6,8.8.8.8,8.8.4.4
 ```
+- Start dnsmasq. Start it after the bridge: with `bind-interfaces` it stops
+  with an error if `virbr0` does not exist. The bridge is lost on reboot;
+  create it again, then restart dnsmasq.
+```shell
+systemctl restart dnsmasq
+systemctl status dnsmasq        # active (running)
+#journalctl -u dnsmasq          # DHCP requests and the addresses given out
+```
 - Iptables (`${interface}` is your computer's network interface to the internet, e.g. `eth0`)
 ```shell
 iptables -A INPUT -i virbr0 -j ACCEPT
@@ -411,6 +424,28 @@ ip addr show ax0
 `-t 0` turns off the colors. Without `kissparms -c 1` Dire Wolf says
 "Invalid transmit channel" for the frames of the Linux KISS driver.
 
+### Homa transport protocol (`HOMA`, `HOMA_UTILS`)
+[Homa](https://github.com/PlatformLab/HomaModule) is a low latency RPC
+transport protocol for data centers. It is not in the mainline kernel yet, so
+it needs kernel 6.17 (`Kernel version` in menuconfig) and it is built as a
+loadable module (`/lib/modules/homa.ko`). It is loaded at boot
+(`/etc/init.d/S30homa`). `patches/homa-small-kernel.patch` lets it build
+without IPsec, SMP and xxhash, which this small kernel does not have.
+
+`make homa_defconfig` (profile `Homa test system`) builds it on a persistent
+disk, so the files you add are kept. It runs with 24 MB of RAM.
+
+Homa needs two machines. [`homa/`](homa/README.md) starts two virtual machines
+on the `virbr0` bridge (see "Bridged network (host setup)"), where they get
+their addresses with DHCP. The settings are in `homa/homa.env`:
+```shell
+make homa_defconfig
+make
+homa/start-vm.sh 1      # terminal 1
+homa/start-vm.sh 2      # terminal 2
+```
+Then `server &` in VM 1 and `homa_test <VM 1 address>:4000 rtt` in VM 2.
+
 ### Look into the disk image
 Without root, on your computer (the numbers are for the default partition
 sizes, see `sfdisk -l <disk image>`):
@@ -439,7 +474,8 @@ sudo mount /dev/loop0p2 /mnt/rw         # ext2 (your changes: rw_root/)
 | `rootfs/` | root filesystem files (`base`, `network`, ...) |
 | `fs_init/` | small init program for the persistent disk (mounts squashfs + overlay) |
 | `packages/` | extra programs (musl, AX.25, Dire Wolf, ALSA, ...) |
-| `patches/` | patches for the programs |
+| `patches/` | patches for the programs (and for Homa) |
+| `homa/` | environment and start script for two Homa test VMs |
 | `scripts/` | helper scripts for the config files |
 | `build/out/` | output files: kernel, initramfs, disk image, ISO |
 | `sources/`, `toolchain/`, `build/` | downloaded sources, libraries, build output (not in git) |
