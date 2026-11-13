@@ -4,6 +4,8 @@ INCLUDED_AX25_TOOLS_MK := 1
 include packages/lib-ax25.mk
 
 AX25_TOOLS_REPO := https://github.com/dandidev/ax25-tools.git
+# Pinned, so a release can be rebuilt from the same source.
+AX25_TOOLS_COMMIT := 3fb26dfa6550d419d7d3ad6afc7a0d7cf33b4efe
 AX25_TOOLS_SRC := $(SOURCES)/ax25-tools
 AX25_TOOLS_PREFIX := $(BUILD)/ax25-tools
 AX25_TOOLS_PREPARED := $(STAMP)/ax25-tools.prepared
@@ -27,7 +29,10 @@ PKG_BINS += AX25_TOOLS_KISS|$(AX25_TOOLS_PREFIX)/usr/sbin/kissparms
 # --------------------------------------------------------------------
 
 $(AX25_TOOLS_PREPARED):
-	git clone --depth 1 $(AX25_TOOLS_REPO) $(AX25_TOOLS_SRC) || true
+	rm -rf $(AX25_TOOLS_SRC)
+	git init -q $(AX25_TOOLS_SRC)
+	cd $(AX25_TOOLS_SRC) && git fetch -q --depth 1 $(AX25_TOOLS_REPO) $(AX25_TOOLS_COMMIT) && \
+		git checkout -q FETCH_HEAD
 	@touch $@
 
 # Only the subdirectories with programs selectable in Kconfig are built.

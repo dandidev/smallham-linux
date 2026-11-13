@@ -64,19 +64,22 @@ menu "System"
 
 config IMAGE_NAME
     string "Image name (part of the output file names)"
-    default "ham-vbox" if PROFILE_HAM && PLATFORM_VBOX
-    default "ham" if PROFILE_HAM
-    default "persistent-vbox" if PROFILE_PERSISTENT && PLATFORM_VBOX
-    default "persistent" if PROFILE_PERSISTENT
-    default "base-vbox" if PLATFORM_VBOX
-    default "base"
+    default "ham-squashfs-vbox" if PROFILE_HAM && ROOTFS_DISK && PLATFORM_VBOX
+    default "ham-squashfs" if PROFILE_HAM && ROOTFS_DISK
+    default "ham-initramfs-vbox" if PROFILE_HAM && PLATFORM_VBOX
+    default "ham-initramfs" if PROFILE_HAM
+    default "base-squashfs-vbox" if ROOTFS_DISK && PLATFORM_VBOX
+    default "base-squashfs" if ROOTFS_DISK
+    default "base-initramfs-vbox" if PLATFORM_VBOX
+    default "base-initramfs"
     help
       The output files in build/out/ are named
-      smallham-<image name>-x86_64-..., e.g. smallham-ham-x86_64.iso.
-      By default the name comes from the profile and the platform
-      (base, ham, persistent, with -vbox for VirtualBox). You can type
-      your own name here, or give it on the command line:
-      make IMAGE_NAME=test
+      smallham-<image name>-x86_64-..., e.g.
+      smallham-ham-squashfs-vbox-x86_64.iso.
+      By default the name comes from the profile (base or ham), the
+      root filesystem (initramfs, or squashfs on the persistent disk)
+      and the platform (-vbox for VirtualBox). You can type your own
+      name here, or give it on the command line: make IMAGE_NAME=test
 
 choice
     prompt "Target platform"

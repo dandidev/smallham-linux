@@ -1,11 +1,13 @@
 # SmallHam build system
 #
 #   make defconfig       base image: kernel + initramfs with a BusyBox shell
+#   make base_squashfs_defconfig  base system on a persistent disk
 #   make ham_defconfig   ham radio setup (disk, network, sound, AX.25, direwolf)
 #   make menuconfig      select features
 #   make                 build (kernel, initramfs and disk.img if selected)
 #   make run             boot in QEMU
 #   make iso             VirtualBox ISO (+ .vmdk)
+#   make release         all release files in build/release/<version>/
 
 KCONFIG_FILE := Kconfig
 .DEFAULT_GOAL := all
@@ -29,6 +31,9 @@ OUT := $(BUILD)/out
 ARCH_NAME := x86_64
 IMAGE_NAME ?= $(or $(subst ",,$(CONFIG_IMAGE_NAME)),custom)
 OUT_NAME := smallham-$(IMAGE_NAME)-$(ARCH_NAME)
+# Version from the git tag, e.g. v0.6, or v0.6-3-gabc1234 between releases
+# (-dirty with uncommitted changes).
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo unknown)
 
 $(shell mkdir -p $(SOURCES) $(BUILD) $(PREFIX) $(STAMP) $(OUT))
 
@@ -66,7 +71,7 @@ XZ_INITRAMFS := xz --check=crc32 --lzma2=preset=9e,dict=1MiB
 IMG := $(OUT)/$(OUT_NAME)-disk.img
 DISK_SIZE_MB := 8
 SQUASHFS_SIZE_MB := 6
-SQUASHFS_IMG := $(BUILD)/squashfs.img
+SQUASHFS_IMG := $(OUT)/$(OUT_NAME)-rootfs.squashfs
 RW_IMG := $(BUILD)/rw.img
 
 # Partition layout (512 byte sectors)
@@ -214,7 +219,7 @@ RUNTIME_DIRS := $(sort $(RUNTIME_DIRS))
 # --------------------------------------------------------------------
 
 .PHONY: all distro kernel kernel-headers busybox rootfs initramfs fs-init extras \
-        run iso menuconfig defconfig oldconfig savedefconfig \
+        run run-script iso release menuconfig defconfig oldconfig savedefconfig \
         clean clean-distro dbg-vars FORCE
 
 all: distro
@@ -227,12 +232,21 @@ endif
 
 # Keeps the disk image (the data on its writable partition).
 clean-distro:
-	rm -rf $(ROOTFS_DIR) $(ISO_DIR) $(OUT_BZIMAGE) $(INITRAMFS) $(ISO_IMG) $(VMDK)
+	rm -rf $(ROOTFS_DIR) $(ISO_DIR) $(OUT_BZIMAGE) $(INITRAMFS) $(SQUASHFS_IMG) $(ISO_IMG) $(VMDK)
 
 extras: $(BUILD_PKGS)
 
+# Release files in build/release/<version>/ (see scripts/release.sh).
+release:
+	scripts/release.sh
+
+# Print one variable, e.g. 'make -s print-KERNEL_URL' (used by release.sh).
+print-%:
+	@echo '$($*)'
+
 dbg-vars:
 	@echo "OUTPUT            = $(OUT)/$(OUT_NAME)*"
+	@echo "VERSION           = $(VERSION)"
 	@echo "KERNEL_FRAGMENTS  = $(KERNEL_FRAGMENT_FILES)"
 	@echo "BUSYBOX_FRAGMENTS = $(BUSYBOX_FRAGMENT_FILES)"
 	@echo "ROOTFS_OVERLAYS   = $(ROOTFS_OVERLAYS)"
@@ -355,6 +369,15 @@ rootfs: busybox extras
 	mkdir -p $(addprefix $(ROOTFS_DIR)/,bin dev proc sys tmp root var/run var/log)
 	for o in $(ROOTFS_OVERLAYS); do cp -a $(ROOT)/rootfs/$$o/. $(ROOTFS_DIR)/; done
 	sed -i 's/^@CONSOLE@/$(CONSOLE_TTY)/' $(ROOTFS_DIR)/etc/inittab
+	printf '%s\n' \
+	  'NAME="SmallHam Linux"' \
+	  'ID=smallham' \
+	  'VERSION="$(VERSION)"' \
+	  'VERSION_ID=$(patsubst v%,%,$(VERSION))' \
+	  'VARIANT_ID=$(IMAGE_NAME)' \
+	  'PRETTY_NAME="SmallHam Linux $(VERSION) ($(IMAGE_NAME))"' \
+	  'HOME_URL="https://github.com/dandidev/smallham-linux"' \
+	  > $(ROOTFS_DIR)/etc/os-release
 	cp $(BUSYBOX_BUILD)/busybox $(ROOTFS_DIR)/bin/busybox
 	cd $(ROOTFS_DIR)/bin && for c in $$(./busybox --list); do ln -sf busybox $$c; done
 ifneq ($(RUNTIME_BINS),)
@@ -426,13 +449,16 @@ $(IMG): rootfs
 	mkfs.ext2 -q -F $(RW_IMG)
 	dd if=$(RW_IMG) of=$(IMG) bs=1M seek=$$(($(RW_START) * 512)) \
 	  oflag=seek_bytes conv=notrunc status=none
-	rm -f $(SQUASHFS_IMG) $(RW_IMG)
+	rm -f $(RW_IMG)
 
 # --------------------------------------------------------------------
 # QEMU
 
 QEMU_MEM ?= 30
 QEMU_EXTRA ?=
+QEMU_CMD = qemu-system-x86_64 -m $(QEMU_MEM) -no-reboot \
+	-kernel $(OUT_BZIMAGE) -initrd $(INITRAMFS) \
+	-append "$(KERNEL_CMDLINE)" $(QEMU_ARGS)
 
 # Kernel and initramfs are brought up to date with the current .config.
 # disk.img is only built if it does not exist (data on the rw partition
@@ -442,10 +468,19 @@ run: kernel initramfs
 ifeq ($(CONFIG_ROOTFS_DISK),y)
 	@[ -f $(IMG) ] || $(MAKE) $(IMG)
 endif
-	qemu-system-x86_64 -m $(QEMU_MEM) -no-reboot \
-	    -kernel $(OUT_BZIMAGE) -initrd $(INITRAMFS) \
-	    -append "$(KERNEL_CMDLINE)" \
-	    $(QEMU_ARGS) $(QEMU_EXTRA)
+	$(QEMU_CMD) $(QEMU_EXTRA)
+
+# The same QEMU command as a script next to the output files (for releases):
+# it boots the files in its own directory, its arguments go to QEMU.
+RUN_SH := $(OUT)/$(OUT_NAME)-run.sh
+
+run-script:
+	printf '%s\n' '#!/bin/sh' \
+	  '# SmallHam Linux $(VERSION) ($(IMAGE_NAME)): boot in QEMU.' \
+	  '# Extra QEMU options can be given as arguments. Type reboot to leave.' \
+	  'cd "$$(dirname "$$0")" || exit 1' \
+	  'exec $(subst $(OUT)/,,$(QEMU_CMD)) "$$@"' > $(RUN_SH)
+	chmod +x $(RUN_SH)
 
 # --------------------------------------------------------------------
 # VirtualBox: bootable ISO (isolinux) + .vmdk for the persistent disk

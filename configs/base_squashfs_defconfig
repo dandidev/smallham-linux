@@ -1,0 +1,2 @@
+# Base system on a persistent disk (squashfs + overlay): network, common tools, vi, system log, no ham radio.
+CONFIG_PROFILE_PERSISTENT=y
