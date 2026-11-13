@@ -2,6 +2,8 @@ ifndef INCLUDED_LIB_AX25_MK
 INCLUDED_LIB_AX25_MK := 1
 
 LIB_AX25_REPO := https://github.com/dandidev/libax25.git
+# Pinned, so a release can be rebuilt from the same source.
+LIB_AX25_COMMIT := 5581005c3f7b2b78ce38433aa0d1c64aba4167d0
 LIB_AX25_SRC := $(SOURCES)/ax25-lib
 LIB_AX25_PREFIX := $(PREFIX)/lib-ax25
 LIB_AX25_PREPARED := $(STAMP)/lib-ax25.prepared
@@ -17,7 +19,10 @@ PKG_FEATURES += LIB_AX25|ax25-lib
 # --------------------------------------------------------------------
 
 $(LIB_AX25_PREPARED):
-	git clone --depth 1 $(LIB_AX25_REPO) $(LIB_AX25_SRC) || true
+	rm -rf $(LIB_AX25_SRC)
+	git init -q $(LIB_AX25_SRC)
+	cd $(LIB_AX25_SRC) && git fetch -q --depth 1 $(LIB_AX25_REPO) $(LIB_AX25_COMMIT) && \
+		git checkout -q FETCH_HEAD
 	@touch $@
 
 $(LIB_AX25_INSTALLED): $(LIB_AX25_PREPARED) | musl kernel-headers

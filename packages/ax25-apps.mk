@@ -5,6 +5,8 @@ include packages/ncurses.mk
 include packages/lib-ax25.mk
 
 AX25_APPS_REPO := https://github.com/dandidev/ax25-apps.git
+# Pinned, so a release can be rebuilt from the same source.
+AX25_APPS_COMMIT := 1c49152fa5e85bbf586690468ea22a1ae087bf6d
 AX25_APPS_SRC := $(SOURCES)/ax25-apps
 AX25_APPS_PREFIX := $(BUILD)/ax25-apps
 AX25_APPS_PREPARED := $(STAMP)/ax25-apps.prepared
@@ -27,7 +29,10 @@ PKG_BINS += AX25_APPS_IPD|$(AX25_APPS_PREFIX)/usr/sbin/ax25ipd
 # --------------------------------------------------------------------
 
 $(AX25_APPS_PREPARED):
-	git clone --depth 1 $(AX25_APPS_REPO) $(AX25_APPS_SRC) || true
+	rm -rf $(AX25_APPS_SRC)
+	git init -q $(AX25_APPS_SRC)
+	cd $(AX25_APPS_SRC) && git fetch -q --depth 1 $(AX25_APPS_REPO) $(AX25_APPS_COMMIT) && \
+		git checkout -q FETCH_HEAD
 	@touch $@
 
 $(AX25_APPS_INSTALLED): ax25-tools ncurses $(AX25_APPS_PREPARED) | musl
