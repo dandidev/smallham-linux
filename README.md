@@ -1,25 +1,51 @@
-# SmallHam minimal linux – Educational System-Building Project
+# SmallHam Linux
 
+[![License: GPL-2.0](https://img.shields.io/badge/license-GPL--2.0-blue)](LICENSE)
+
+A tiny educational Linux (under 1 MB) that boots in QEMU or VirtualBox with
+16 MB RAM, with optional AX.25 packet radio support.
+
+<!-- demo (asciinema/GIF) comes here -->
+
+## Features
+- **Tiny:** the base system is 926 KB (kernel + initramfs) and boots with 16 MB RAM.
+- **Amateur radio:** AX.25, NET/ROM, ROSE, KISS and 6PACK in the kernel, the
+  AX.25 tools and the Dire Wolf sound card modem. Dire Wolf and `kissattach`
+  give an AX.25 network interface (`ax0`). A connection between two stations
+  is not tested yet (see [ROADMAP.md](ROADMAP.md)).
+- **Persistent disk:** a read-only squashfs root with an ext2 overlay for your changes.
+- **Configured with menuconfig:** profiles (base, persistent, ham radio) and
+  one option for each feature.
+- **Built from source without root:** all programs are static (musl). The
+  images run in QEMU and VirtualBox (ISO).
+
+## Quick start
+Install the packages in [Requirements](#requirements), then build the base
+image and start it in QEMU:
+```shell
+git clone https://github.com/dandidev/smallham-linux.git
+cd smallham-linux
+make defconfig
+make
+make run        # type 'reboot' to leave
+```
+
+## About
 This project builds a very small Linux system, mainly for learning. You can see
 how a Linux system is put together from the ground up: the Linux kernel,
 BusyBox and a few optional programs. The system is 64-bit (x86_64); the output
 file names show it, e.g. `smallham-ham-x86_64.iso`.
 
-## Key Objectives:
-- Practice compiling and configuring the Linux kernel
-- Understand initramfs and the boot process
-- Build a custom init system
-- Integrate core utilities using BusyBox
-- Configure the system with Kconfig and Makefiles
-- Make images that run in QEMU and VirtualBox
-- **Enable amateur radio control testing on minimal hardware**
+What you can learn and practice with it:
+- compiling and configuring the Linux kernel
+- initramfs and the boot process
+- a custom init system
+- core utilities with BusyBox
+- configuration with Kconfig and Makefiles
+- images that run in QEMU and VirtualBox
 
-## Amateur Radio Support
-
-The system can include amateur radio support: AX.25, NET/ROM, ROSE, MKISS
-(KISS) and 6PACK in the kernel, and the AX.25 tools and Dire Wolf (a sound card
-modem) as programs. The goal is to run it on minimal hardware, for example to
-simulate repeater stations or radio towers on ordinary computers.
+The amateur radio part is optional. The goal is to run it on minimal hardware,
+for example to simulate repeater stations or radio towers on ordinary computers.
 
 ## Requirements
 
@@ -59,21 +85,6 @@ Memory (RAM) for the virtual machine:
 |---|---|---|
 | Base image | 16 MB | 16 MB |
 | Ham radio setup | 20 MB (24 MB to run Dire Wolf) | 32 MB |
-
-## Getting started
-### Clone this project
-```shell
-git clone https://github.com/dandidev/smallham-linux.git
-cd smallham-linux
-```
-
-### Quick start
-Build the base image and start it in QEMU:
-```shell
-make defconfig
-make
-make run        # type 'reboot' to leave
-```
 
 ## System size
 Measured sizes of the built system:
@@ -444,26 +455,16 @@ sudo mount /dev/loop0p2 /mnt/rw         # ext2 (your changes: rw_root/)
 | `build/out/` | output files: kernel, initramfs, disk image, ISO |
 | `sources/`, `toolchain/`, `build/` | downloaded sources, libraries, build output (not in git) |
 
-### Under Construction
+## Roadmap
+Planned work and things that are not tested yet: [ROADMAP.md](ROADMAP.md).
 
-#### Package manager 
-- Kiss package manager
-```shell
-git clone https://github.com/kisslinux/kiss.git
-```
-- TinyGCC
-https://bellard.org/tcc/
+## License
+The files of this project (`Makefile`, `Kconfig`, `configs/`, `packages/`,
+`scripts/`, `rootfs/`, `fs_init/`) are licensed under the GNU General Public
+License version 2 (GPL-2.0-only), the same as the Linux kernel and BusyBox.
+See [LICENSE](LICENSE).
 
-
-# TODO's
-- 32-bit (i386) version. On x86_64 the kernel parts are placed on 2 MB borders,
-  so about 4 MB of RAM is empty space while the system starts. A 32-bit kernel
-  does not need this, and its code and data are smaller. The system could start
-  with about half the RAM, and it would also run on old 32-bit PCs. For this,
-  musl, BusyBox and all programs must be built for 32-bit too.
-- Bootchart optimalization
-- Testing all drivers
-- Testing direwolf communication
-- Testing netrom routing
-- Testing digirig connection with direwolf
-- Testing another linux (tested only Arch linux)
+The programs that `make` downloads and builds (Linux kernel, BusyBox, musl,
+Dire Wolf, AX.25 tools, ALSA, ncurses, ...) have their own licenses. The files
+in `patches/` change these programs and have the license of the program they
+change.
