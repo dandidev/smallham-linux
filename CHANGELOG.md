@@ -4,8 +4,8 @@
 
 - Release files: QEMU packages with a `run.sh` (base on initramfs, base on a
   persistent disk, ham radio setup), a VirtualBox ISO (base) and a VirtualBox
-  ISO + `.vmdk` (ham radio setup), the source code and `SHA256SUMS`
-  (`make release`).
+  ISO + `.vmdk` (ham radio setup), the source code (the kernel source as a
+  separate file) and `SHA256SUMS` (`make release`).
 - New output file names: the root filesystem type is part of the name
   (`base-initramfs`, `base-squashfs`, `ham-squashfs`, with `-vbox` for
   VirtualBox).

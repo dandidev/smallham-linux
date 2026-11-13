@@ -270,7 +270,8 @@ into `build/release/<version>/`. The version comes from the git tag
 | `smallham-<version>-ham-squashfs-x86_64.tar.xz` | `ham_defconfig` | QEMU: ham radio setup on a persistent disk, `run.sh` |
 | `smallham-<version>-base-initramfs-vbox-x86_64.iso` | `base_vbox_defconfig` | VirtualBox: boots from the ISO alone |
 | `smallham-<version>-ham-squashfs-vbox-x86_64.zip` | `ham_vbox_defconfig` | VirtualBox: ISO + `.vmdk` disk |
-| `smallham-<version>-sources.tar` | | source code of SmallHam and of the programs in the images (the kernel: see `SOURCES.md` inside) |
+| `smallham-<version>-sources.tar` | | source code of SmallHam and of the programs in the images, except the kernel (list: `SOURCES.md` inside) |
+| `linux-<kernel version>.tar.xz` | | source code of the kernel (unmodified, the same file as on kernel.org) |
 | `SHA256SUMS` | | checksums: `sha256sum -c SHA256SUMS` |
 
 The `.tar.xz` and `.zip` files also contain the license texts of the programs

@@ -6,6 +6,7 @@
 #   smallham-<version>-<variant>-x86_64.iso      VirtualBox, boots alone
 #   smallham-<version>-<variant>-x86_64.zip      VirtualBox: ISO + .vmdk disk
 #   smallham-<version>-sources.tar               source code (no kernel)
+#   linux-<kernel version>.tar.xz                kernel source (from kernel.org)
 #   SHA256SUMS
 #
 # Usage: make release (from a clean checkout of a release tag). The version
@@ -143,8 +144,8 @@ build_variant base_vbox_defconfig     base-initramfs-vbox iso
 build_variant ham_vbox_defconfig      ham-squashfs-vbox   zip
 
 # --------------------------------------------------------------------
-# Source code: SmallHam itself and the upstream sources, except the kernel
-# (134 MB; it is unmodified and has a written offer in SOURCES.md).
+# Source code: SmallHam itself and the upstream sources. The kernel (134 MB,
+# unmodified) is a separate release file, so the sources archive stays small.
 
 echo "=== sources"
 srcname=smallham-$VERSION-sources
@@ -184,6 +185,17 @@ if [ -z "$ksha" ]; then
     echo "ERROR: no sha256 for $ktar on kernel.org" >&2
     exit 1
 fi
+# The kernel source is a separate release file next to the binaries (GPLv2
+# section 3: source offered from the same place as the binaries).
+if [ ! -f "$DL/$ktar" ]; then
+    curl -fL "$kurl" -o "$DL/$ktar.part"
+    mv "$DL/$ktar.part" "$DL/$ktar"
+fi
+if [ "$(sha256sum < "$DL/$ktar" | cut -d' ' -f1)" != "$ksha" ]; then
+    echo "ERROR: $ktar does not match the sha256 on kernel.org" >&2
+    exit 1
+fi
+cp "$DL/$ktar" "$REL/"
 
 {
     echo "# Source code of SmallHam Linux $VERSION"
@@ -204,19 +216,16 @@ fi
     echo
     echo "## Linux kernel"
     echo
-    echo "The kernel source is not in this archive because of its size. It is"
-    echo "the unmodified Linux $kver release (no patches):"
+    echo "The kernel source is a separate file on the release page, because of"
+    echo "its size: $ktar. It is the unmodified Linux $kver release"
+    echo "(no patches), the same file as on kernel.org:"
     echo
+    echo "- $REPO_URL/releases/download/$VERSION/$ktar"
     echo "- $kurl"
     echo "- SHA256: $ksha"
     echo
     echo "The kernel configuration is made by the Makefile from"
     echo "configs/kernel/*.config."
-    echo
-    echo "Written offer: for at least three years after this release, the author"
-    echo "of SmallHam Linux gives anyone a complete copy of the Linux kernel"
-    echo "source used in this release, for no more than the cost of the transfer."
-    echo "Ask for it in a GitHub issue: $REPO_URL/issues"
 } > "$src/SOURCES.md"
 
 tar --owner=0 --group=0 --numeric-owner -C "$STAGE" -cf "$REL/$srcname.tar" "$srcname"
