@@ -6,6 +6,11 @@
   (VirtIO block, VirtIO SCSI, SATA/AHCI) and network cards (virtio-net,
   Intel PRO/1000). The platform still turns on only one of each.
   AHCI and PRO/1000 are the defaults of a new VirtualBox VM.
+- `fs_init` finds the persistent disk by its content (squashfs + ext2
+  partition), so it works on every disk controller; the kernel command line
+  has no device names any more. It waits up to 10 seconds for slow devices.
+  If no disk is found, it lists the block devices and the disk drivers of
+  the kernel, with a hint.
 
 ## v0.6 – first release with downloadable files
 

@@ -115,12 +115,6 @@ QEMU_DISK_ahci = -device ahci,id=ahci0 -drive file=$(IMG),format=raw,if=none,id=
             -device ide-hd,drive=disk0,bus=ahci0.0
 QEMU_DISK = $(QEMU_DISK_$(QEMU_DISK_DRIVER))
 
-ifeq ($(QEMU_DISK_DRIVER),virtio-blk)
-DISK_DEV := vda
-else
-DISK_DEV := sda
-endif
-
 ifeq ($(CONFIG_CONSOLE_SERIAL),y)
 KERNEL_FRAGMENTS += console-serial
 CONSOLE_TTY := ttyS0
@@ -134,7 +128,6 @@ endif
 ifeq ($(CONFIG_ROOTFS_DISK),y)
 KERNEL_FRAGMENTS += rootfs-disk $(addprefix disk-,$(DISK_DRIVERS))
 BUSYBOX_FRAGMENTS += disk
-KERNEL_CMDLINE += squashfs_dev=/dev/$(DISK_DEV)1 rw_dev=/dev/$(DISK_DEV)2
 QEMU_ARGS += $(QEMU_DISK)
 endif
 
@@ -438,7 +431,8 @@ FS_INIT := $(BUILD)/fs_init/init
 
 fs-init: musl kernel-headers
 	@mkdir -p $(dir $(FS_INIT))
-	$(MUSL_CC) -Os -static -I$(LINUX_HEADERS_DIR)/include $(FS_INIT_SRC)/fs_init.c -o $(FS_INIT)
+	$(MUSL_CC) -Os -static -I$(LINUX_HEADERS_DIR)/include -DDISK_DRIVERS='"$(strip $(DISK_DRIVERS) $(if $(CONFIG_USB_STORAGE),usb-storage))"' \
+	  $(FS_INIT_SRC)/fs_init.c -o $(FS_INIT)
 	strip --strip-all $(FS_INIT)
 
 # Only fs_init: it mounts the root filesystem from the disk.

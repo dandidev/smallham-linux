@@ -163,6 +163,7 @@ the profile later.
 - **Root filesystem**:
   - `initramfs only`: the whole system is in RAM, changes are lost on reboot
   - `Persistent disk`: a read-only squashfs plus a writable ext2 partition, joined with overlayfs (`fs_init`); changes are kept
+    - `fs_init` finds the disk by its content (a squashfs and an ext2 partition), on any controller the kernel has a driver for, and waits up to 10 seconds for slow devices (`fs_wait=<seconds>` on the kernel command line). If no disk is found, it lists the block devices and the disk drivers of the kernel. `squashfs_dev=/dev/vda1 rw_dev=/dev/vda2` on the kernel command line selects the partitions by name.
 - **Console**: VGA screen and PS/2 keyboard, or serial port (`ttyS0`, QEMU runs with `-nographic`)
 - **ACPI**: `poweroff` switches off the virtual machine (without it use `reboot`)
 
@@ -324,7 +325,7 @@ qemu-system-x86_64 -m 32 -no-reboot \
   -kernel smallham-ham-squashfs-x86_64-bzImage \
   -initrd smallham-ham-squashfs-x86_64-initramfs.cpio.xz \
   -drive file=smallham-ham-squashfs-x86_64-disk.img,format=raw,if=virtio \
-  -append "notsc squashfs_dev=/dev/vda1 rw_dev=/dev/vda2" \
+  -append "notsc" \
   -netdev user,id=net0 -device virtio-net-pci,netdev=net0
 ```
 - Serial console: add `console=ttyS0` to `-append` and `-nographic` to QEMU
@@ -416,7 +417,7 @@ qemu-system-x86_64 -m 32 -no-reboot \
   -kernel build/out/smallham-ham-squashfs-x86_64-bzImage \
   -initrd build/out/smallham-ham-squashfs-x86_64-initramfs.cpio.xz \
   -drive file=build/out/smallham-ham-squashfs-x86_64-disk.img,format=raw,if=virtio \
-  -append "notsc squashfs_dev=/dev/vda1 rw_dev=/dev/vda2" \
+  -append "notsc" \
   -device qemu-xhci -device usb-host,vendorid=0x08bb,productid=0x2902 \
   -netdev bridge,id=net0,br=virbr0 \
   -device virtio-net-pci,netdev=net0,mac=52:54:00:12:34:56
