@@ -4,6 +4,7 @@
 #   smallham-<version>-<variant>-x86_64.tar.xz   QEMU: kernel, initramfs,
 #                                                (disk image), run.sh
 #   smallham-<version>-<variant>-x86_64.iso      VirtualBox, boots alone
+#   smallham-<version>-<variant>-x86_64.ova      VirtualBox appliance (import)
 #   smallham-<version>-<variant>-x86_64.zip      VirtualBox: ISO + .vmdk disk
 #   smallham-<version>-sources.tar               source code (no kernel)
 #   linux-<kernel version>.tar.xz                kernel source (from kernel.org)
@@ -123,15 +124,23 @@ $note"
         cp "$base.iso" "$REL/$pkg.iso"
         ;;
     zip)
-        make iso
+        make ova
+        cp "$base.ova" "$REL/$pkg.ova"
         dir=$STAGE/$pkg
         mkdir -p "$dir"
         cp "$base.iso" "$base-disk.vmdk" "$base-rootfs.squashfs" "$dir/"
         add_licenses "$dir" $ham
-        readme "$dir" "$name" "VirtualBox: boot from the .iso and attach the .vmdk (the system
-with your changes) to a \"VirtIO SCSI\" storage controller.
-Use the \"virtio-net\" network adapter. Step by step: README.md,
-\"Run with VirtualBox\"."
+        readme "$dir" "$name" "VirtualBox, the easy way: import this file (a separate download
+on the release page) with File > Import Appliance:
+
+    $pkg.ova
+
+It sets up everything.
+
+By hand: boot from the .iso and attach the .vmdk (the system with your
+changes) to a \"VirtIO SCSI\" storage controller. A new VM puts the disk
+on the SATA controller: remove it there first. Use the \"virtio-net\"
+network adapter. Step by step: README.md, \"Run with VirtualBox\"."
         (cd "$STAGE" && zip -qrX "$REL/$pkg.zip" "$pkg")
         ;;
     esac
@@ -232,7 +241,7 @@ tar --owner=0 --group=0 --numeric-owner -C "$STAGE" -cf "$REL/$srcname.tar" "$sr
 
 # --------------------------------------------------------------------
 
-(cd "$REL" && sha256sum -- *.tar.xz *.iso *.zip *.tar > SHA256SUMS)
+(cd "$REL" && sha256sum -- *.tar.xz *.iso *.ova *.zip *.tar > SHA256SUMS)
 echo
 echo "Release files in $REL:"
 ls -l "$REL"

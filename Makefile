@@ -6,7 +6,8 @@
 #   make menuconfig      select features
 #   make                 build (kernel, initramfs and disk.img if selected)
 #   make run             boot in QEMU
-#   make iso             VirtualBox ISO (+ .vmdk)
+#   make iso             VirtualBox ISO (+ .vmdk with a persistent disk)
+#   make ova             VirtualBox appliance (.ova) with the ISO and the disk
 #   make release         all release files in build/release/<version>/
 
 KCONFIG_FILE := Kconfig
@@ -83,6 +84,7 @@ RW_SECTORS := $(shell echo $$(($(DISK_SIZE_MB) * 2048 - $(RW_START))))
 ISO_DIR := $(BUILD)/iso
 ISO_IMG := $(OUT)/$(OUT_NAME).iso
 VMDK := $(OUT)/$(OUT_NAME)-disk.vmdk
+OVA := $(OUT)/$(OUT_NAME).ova
 
 # --------------------------------------------------------------------
 # Feature selection: .config -> kernel/BusyBox config fragments, rootfs
@@ -245,7 +247,7 @@ RUNTIME_DIRS := $(sort $(RUNTIME_DIRS))
 # --------------------------------------------------------------------
 
 .PHONY: all distro kernel kernel-headers busybox rootfs initramfs fs-init extras \
-        run run-script iso release menuconfig defconfig oldconfig savedefconfig \
+        run run-script iso ova release menuconfig defconfig oldconfig savedefconfig \
         clean clean-distro dbg-vars FORCE
 
 all: distro
@@ -258,7 +260,7 @@ endif
 
 # Keeps the disk image (the data on its writable partition).
 clean-distro:
-	rm -rf $(ROOTFS_DIR) $(ISO_DIR) $(OUT_BZIMAGE) $(INITRAMFS) $(SQUASHFS_IMG) $(ISO_IMG) $(VMDK)
+	rm -rf $(ROOTFS_DIR) $(ISO_DIR) $(OUT_BZIMAGE) $(INITRAMFS) $(SQUASHFS_IMG) $(ISO_IMG) $(VMDK) $(OVA)
 
 extras: $(BUILD_PKGS)
 
@@ -516,9 +518,24 @@ run-script:
 
 ISOLINUX_DIR ?= /usr/lib/syslinux/bios
 
-ifneq ($(filter iso,$(MAKECMDGOALS)),)
+# VirtualBox appliance (.ova) for the persistent disk: memory of the VM,
+# its disk controller and network card come from the selected drivers.
+VBOX_MEM ?= 32
+OVA_DISK := $(firstword $(filter virtio-scsi,$(DISK_DRIVERS)) $(filter ahci,$(DISK_DRIVERS)))
+OVA_NIC := $(if $(CONFIG_NET_VIRTIO),virtio,$(if $(CONFIG_NET_E1000),e1000,none))
+
+ifneq ($(filter iso ova,$(MAKECMDGOALS)),)
 ifneq ($(CONFIG_PLATFORM_VBOX),y)
-$(error 'make iso' needs 'Target platform: VirtualBox' (make menuconfig))
+$(error 'make $(filter iso ova,$(MAKECMDGOALS))' needs 'Target platform: VirtualBox' (make menuconfig))
+endif
+endif
+
+ifneq ($(filter ova,$(MAKECMDGOALS)),)
+ifneq ($(CONFIG_ROOTFS_DISK),y)
+$(error 'make ova' needs 'Root filesystem: Persistent disk' (without it use the ISO alone: make iso))
+endif
+ifeq ($(OVA_DISK),)
+$(error 'make ova': VirtualBox has no $(DISK_DRIVERS) disk controller, turn on DISK_VIRTIO_SCSI or DISK_AHCI (make menuconfig))
 endif
 endif
 
@@ -540,6 +557,13 @@ ifeq ($(CONFIG_ROOTFS_DISK),y)
 else
 	@echo "Created $(ISO_IMG)"
 endif
+
+# The ISO, the disk and the VM settings in one file: importing it creates a
+# VM with the right disk controller and network card.
+ova: iso
+	scripts/make-ova.sh $(OVA) $(OUT_NAME) $(ISO_IMG) $(IMG) $(VBOX_MEM) \
+	  $(OVA_DISK) $(OVA_NIC) $(if $(CONFIG_USB),y,n)
+	@echo "Created $(OVA) (VM: $(OVA_DISK) disk controller, $(OVA_NIC) network card)"
 
 # --------------------------------------------------------------------
 

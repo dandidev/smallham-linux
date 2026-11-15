@@ -11,6 +11,12 @@
   has no device names any more. It waits up to 10 seconds for slow devices.
   If no disk is found, it lists the block devices and the disk drivers of
   the kernel, with a hint.
+- `make ova` makes a VirtualBox appliance (`.ova`) with a persistent
+  disk: importing it creates a VM with the right storage controller and
+  network card, with the ISO and the disk attached. It is a new release file
+  for the VirtualBox ham radio setup.
+- README: step by step VirtualBox setup by hand, also for the case when the
+  disk is on the SATA controller of a new VM.
 
 ## v0.6 – first release with downloadable files
 

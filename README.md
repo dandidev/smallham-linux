@@ -18,7 +18,7 @@ A tiny educational Linux (under 1 MB) that boots in QEMU or VirtualBox with
 - **Configured with menuconfig:** profiles (base, persistent, ham radio) and
   one option for each feature.
 - **Built from source without root:** all programs are static (musl). The
-  images run in QEMU and VirtualBox (ISO).
+  images run in QEMU and VirtualBox (ISO, or an `.ova` appliance to import).
 
 ## Quick start
 ### Download and run
@@ -260,6 +260,7 @@ Make targets:
 | `make` | builds the kernel, the initramfs and the disk image |
 | `make run` | starts the system in QEMU |
 | `make iso` | makes the VirtualBox ISO (and `.vmdk`) |
+| `make ova` | makes the VirtualBox appliance (`.ova`): the ISO, the disk and the VM settings in one file (only with a persistent disk) |
 | `make run-script` | writes the `make run` QEMU command as a script next to the output files |
 | `make release` | builds all release variants into `build/release/<version>/` (see [Release files](#release-files)) |
 | `make menuconfig`, `defconfig`, `<name>_defconfig`, `oldconfig`, `savedefconfig` | configuration |
@@ -280,7 +281,8 @@ into `build/release/<version>/`. The version comes from the git tag
 | `smallham-<version>-base-squashfs-x86_64.tar.xz` | `base_squashfs_defconfig` | QEMU: base system on a persistent disk, `run.sh` |
 | `smallham-<version>-ham-squashfs-x86_64.tar.xz` | `ham_defconfig` | QEMU: ham radio setup on a persistent disk, `run.sh` |
 | `smallham-<version>-base-initramfs-vbox-x86_64.iso` | `base_vbox_defconfig` | VirtualBox: boots from the ISO alone |
-| `smallham-<version>-ham-squashfs-vbox-x86_64.zip` | `ham_vbox_defconfig` | VirtualBox: ISO + `.vmdk` disk |
+| `smallham-<version>-ham-squashfs-vbox-x86_64.ova` | `ham_vbox_defconfig` | VirtualBox appliance: import it, the VM is ready to start |
+| `smallham-<version>-ham-squashfs-vbox-x86_64.zip` | `ham_vbox_defconfig` | VirtualBox: ISO + `.vmdk` disk, to set up the VM by hand |
 | `smallham-<version>-sources.tar` | | source code of SmallHam and of the programs in the images, except the kernel (list: `SOURCES.md` inside) |
 | `linux-<kernel version>.tar.xz` | | source code of the kernel (unmodified, the same file as on kernel.org) |
 | `SHA256SUMS` | | checksums: `sha256sum -c SHA256SUMS` |
@@ -346,6 +348,7 @@ in `make menuconfig`), then make the ISO:
 ```shell
 make ham_vbox_defconfig     # or: make base_vbox_defconfig
 make iso
+make ova                    # only with a persistent disk (ham_vbox_defconfig)
 ```
 Output in `build/out/`:
 
@@ -353,12 +356,43 @@ Output in `build/out/`:
 |---|---|
 | `smallham-ham-squashfs-vbox-x86_64.iso` | bootable CD image with the kernel and the initramfs |
 | `smallham-ham-squashfs-vbox-x86_64-disk.vmdk` | the persistent disk in VirtualBox format (only with `Persistent disk`) |
+| `smallham-ham-squashfs-vbox-x86_64.ova` | VirtualBox appliance: the ISO, the disk and the VM settings in one file (`make ova`) |
 
-Copy these files to any computer with VirtualBox and set up a VM:
+#### Import the appliance (.ova)
+The easiest way: in VirtualBox choose **File > Import Appliance**, select the
+`.ova` file and press **Finish**. The new VM has the ISO in its optical drive,
+the disk on the right storage controller and the right network card; start
+it. From the command line:
+```shell
+VBoxManage import smallham-ham-squashfs-vbox-x86_64.ova --vsys 0 --vmname smallham
+VBoxManage startvm smallham
+```
+The disk and network drivers of your configuration decide the controller and
+the network card of the appliance (VirtIO SCSI or SATA, virtio-net or
+Intel PRO/1000).
+
+#### Set up a VM by hand
+Copy the `.iso` and the `.vmdk` to any computer with VirtualBox and set up a VM:
 - Type: Linux, 64-bit. Memory: 16 MB for the base image, 32 MB for the ham radio setup
 - Optical drive (IDE): the `.iso` file, boot from it
-- Persistent disk: add a **VirtIO SCSI** storage controller and attach the `.vmdk` file to it
+- Persistent disk: a **VirtIO SCSI** storage controller with the `.vmdk` file
 - Network: adapter type **Paravirtualized Network (virtio-net)**
+
+A new VM in the VirtualBox window puts the disk on a SATA controller and uses
+an Intel PRO/1000 network card. The `ham_vbox_defconfig` kernel has no drivers
+for them, and the boot stops with `fs_init: no disk with a squashfs and an
+ext2 partition found`. Change the settings step by step:
+1. **Settings > Storage**: select the `.vmdk` under *Controller: SATA* and
+   remove it (the *Remove Attachment* button), then press **OK**.
+2. Open **Settings > Storage** again, add a new controller
+   (*Add Controller* > **VirtIO SCSI**), and attach the `.vmdk` to it
+   (*Add Hard Disk* > choose the file). VirtualBox refuses to attach the
+   disk again before the first change is saved, this is why step 1 ends with OK.
+3. **Settings > Network > Adapter 1 > Advanced**: Adapter Type
+   **Paravirtualized Network (virtio-net)**.
+
+Or keep the VirtualBox defaults and turn on `DISK_AHCI` and `NET_E1000` in
+`make menuconfig` (Kernel drivers) before `make iso` or `make ova`.
 
 The same from the command line:
 ```shell
