@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- More drivers can be selected in "Kernel drivers": disk controllers
+  (VirtIO block, VirtIO SCSI, SATA/AHCI) and network cards (virtio-net,
+  Intel PRO/1000). The platform still turns on only one of each.
+  AHCI and PRO/1000 are the defaults of a new VirtualBox VM.
+
 ## v0.6 – first release with downloadable files
 
 - Release files: QEMU packages with a `run.sh` (base on initramfs, base on a

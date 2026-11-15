@@ -94,15 +94,31 @@ ROOTFS_OVERLAYS := base
 KERNEL_CMDLINE := notsc
 QEMU_ARGS :=
 
-ifeq ($(CONFIG_PLATFORM_VBOX),y)
-DISK_DEV := sda
-DISK_KERNEL_FRAGMENT := disk-virtio-scsi
-QEMU_DISK = -device virtio-scsi-pci,id=scsi0 -drive file=$(IMG),format=raw,if=none,id=disk0 \
+# Disk controllers in the kernel. 'make run' attaches the disk to the
+# first one: on VirtualBox VirtIO SCSI is preferred, as in the VM.
+DISK_DRIVERS :=
+ifeq ($(CONFIG_DISK_VIRTIO_BLK),y)
+DISK_DRIVERS += virtio-blk
+endif
+ifeq ($(CONFIG_DISK_VIRTIO_SCSI),y)
+DISK_DRIVERS += virtio-scsi
+endif
+ifeq ($(CONFIG_DISK_AHCI),y)
+DISK_DRIVERS += ahci
+endif
+QEMU_DISK_DRIVER := $(firstword $(if $(CONFIG_PLATFORM_VBOX),$(filter virtio-scsi,$(DISK_DRIVERS))) $(DISK_DRIVERS))
+
+QEMU_DISK_virtio-blk = -drive file=$(IMG),format=raw,if=virtio
+QEMU_DISK_virtio-scsi = -device virtio-scsi-pci,id=scsi0 -drive file=$(IMG),format=raw,if=none,id=disk0 \
             -device scsi-hd,drive=disk0,bus=scsi0.0
-else
+QEMU_DISK_ahci = -device ahci,id=ahci0 -drive file=$(IMG),format=raw,if=none,id=disk0 \
+            -device ide-hd,drive=disk0,bus=ahci0.0
+QEMU_DISK = $(QEMU_DISK_$(QEMU_DISK_DRIVER))
+
+ifeq ($(QEMU_DISK_DRIVER),virtio-blk)
 DISK_DEV := vda
-DISK_KERNEL_FRAGMENT := disk-virtio-blk
-QEMU_DISK = -drive file=$(IMG),format=raw,if=virtio
+else
+DISK_DEV := sda
 endif
 
 ifeq ($(CONFIG_CONSOLE_SERIAL),y)
@@ -116,19 +132,36 @@ CONSOLE_TTY := tty1
 endif
 
 ifeq ($(CONFIG_ROOTFS_DISK),y)
-KERNEL_FRAGMENTS += rootfs-disk virtio $(DISK_KERNEL_FRAGMENT)
+KERNEL_FRAGMENTS += rootfs-disk $(addprefix disk-,$(DISK_DRIVERS))
 BUSYBOX_FRAGMENTS += disk
 KERNEL_CMDLINE += squashfs_dev=/dev/$(DISK_DEV)1 rw_dev=/dev/$(DISK_DEV)2
 QEMU_ARGS += $(QEMU_DISK)
+endif
+
+ifneq ($(filter virtio-%,$(DISK_DRIVERS)),)
+KERNEL_FRAGMENTS += virtio
 NEED_VIRTIO := y
 endif
 
 ifeq ($(CONFIG_NET),y)
-KERNEL_FRAGMENTS += net virtio
+KERNEL_FRAGMENTS += net
 BUSYBOX_FRAGMENTS += net
 ROOTFS_OVERLAYS += network
-QEMU_ARGS += -netdev user,id=net0 -device virtio-net-pci,netdev=net0
+endif
+
+ifeq ($(CONFIG_NET_VIRTIO),y)
+KERNEL_FRAGMENTS += net-virtio virtio
+QEMU_NIC := virtio-net-pci
 NEED_VIRTIO := y
+endif
+
+ifeq ($(CONFIG_NET_E1000),y)
+KERNEL_FRAGMENTS += net-e1000
+QEMU_NIC ?= e1000
+endif
+
+ifneq ($(QEMU_NIC),)
+QEMU_ARGS += -netdev user,id=net0 -device $(QEMU_NIC),netdev=net0
 endif
 
 ifeq ($(CONFIG_PLATFORM_VBOX)$(NEED_VIRTIO),yy)
@@ -251,6 +284,8 @@ dbg-vars:
 	@echo "BUSYBOX_FRAGMENTS = $(BUSYBOX_FRAGMENT_FILES)"
 	@echo "ROOTFS_OVERLAYS   = $(ROOTFS_OVERLAYS)"
 	@echo "KERNEL_CMDLINE    = $(KERNEL_CMDLINE)"
+	@echo "DISK_DRIVERS      = $(DISK_DRIVERS)"
+	@echo "QEMU_ARGS         = $(QEMU_ARGS)"
 	@echo "BUILD_PKGS        = $(BUILD_PKGS)"
 	@echo "RUNTIME_BINS      = $(RUNTIME_BINS)"
 	@echo "RUNTIME_DIRS      = $(RUNTIME_DIRS)"
@@ -507,7 +542,7 @@ iso: distro
 ifeq ($(CONFIG_ROOTFS_DISK),y)
 	rm -f $(VMDK)
 	qemu-img convert -f raw -O vmdk $(IMG) $(VMDK)
-	@echo "Created $(ISO_IMG) and $(VMDK) (attach it to a VirtIO SCSI controller)"
+	@echo "Created $(ISO_IMG) and $(VMDK) (disk controller: $(DISK_DRIVERS))"
 else
 	@echo "Created $(ISO_IMG)"
 endif

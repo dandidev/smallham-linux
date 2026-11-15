@@ -159,7 +159,7 @@ the profile later.
 
 #### System
 - **Image name**: part of the output file names. By default it comes from the profile (`base` or `ham`), the root filesystem (`initramfs` or `squashfs`) and the platform (`-vbox` for VirtualBox), e.g. `base-initramfs`, `base-squashfs`, `ham-squashfs-vbox`
-- **Target platform**: `QEMU` (disk: virtio-blk, `/dev/vda`) or `VirtualBox (ISO)` (disk: VirtIO SCSI, `/dev/sda`)
+- **Target platform**: `QEMU` (disk: virtio-blk, `/dev/vda`) or `VirtualBox (ISO)` (disk: VirtIO SCSI, `/dev/sda`). Other disk controllers and network cards: see *Kernel drivers*
 - **Root filesystem**:
   - `initramfs only`: the whole system is in RAM, changes are lost on reboot
   - `Persistent disk`: a read-only squashfs plus a writable ext2 partition, joined with overlayfs (`fs_init`); changes are kept
@@ -167,7 +167,17 @@ the profile later.
 - **ACPI**: `poweroff` switches off the virtual machine (without it use `reboot`)
 
 #### Kernel drivers
-- `NET` – network (virtio-net, IPv4, DHCP with `ifup` and `udhcpc`)
+- Disk controller (only with `Persistent disk`), the platform turns on one:
+  - `DISK_VIRTIO_BLK` – VirtIO block device (QEMU)
+  - `DISK_VIRTIO_SCSI` – VirtIO SCSI controller (VirtualBox)
+  - `DISK_AHCI` – SATA (AHCI) controller, the default controller of a new VirtualBox VM
+- `NET` – network (IPv4, DHCP with `ifup` and `udhcpc`), with a network card:
+  - `NET_VIRTIO` – virtio-net (on by default)
+  - `NET_E1000` – Intel PRO/1000, the default network card of a new VirtualBox VM
+
+Only the drivers you need are built in, to keep the kernel small. If your VM
+uses other hardware, turn on its driver and build again. `make run` attaches
+the disk and the network card to a driver you selected.
 - `USB` – USB host controllers (xHCI, EHCI), for USB devices passed to the VM
 - `USB_STORAGE` – USB drives, with FAT filesystem
 - `SOUND` – USB sound cards (ALSA)
