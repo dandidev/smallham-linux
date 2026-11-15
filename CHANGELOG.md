@@ -17,6 +17,8 @@
   for the VirtualBox ham radio setup.
 - README: step by step VirtualBox setup by hand, also for the case when the
   disk is on the SATA controller of a new VM.
+- The ISO (and so the `.ova`) has the license texts in `licenses/`, like
+  the other release files. The ISO has Rock Ridge and Joliet names.
 
 ## v0.6 – first release with downloadable files
 

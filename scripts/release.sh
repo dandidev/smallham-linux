@@ -43,28 +43,9 @@ mkdir -p "$REL" "$STAGE" "$DL"
 # --------------------------------------------------------------------
 # License texts of the programs in the images
 
-lic() {  # <dir> <name> <file>...
-    d=$1/licenses/$2; shift 2
-    mkdir -p "$d"
-    cp "$@" "$d/"
-}
-
-add_licenses() {  # <dir> <ham: yes|no>
-    ksrc=sources/linux-$(mk KERNEL_VERSION)
-    lic "$1" smallham LICENSE
-    lic "$1" linux "$ksrc/COPYING" "$ksrc/LICENSES/preferred/GPL-2.0" \
-        "$ksrc/LICENSES/exceptions/Linux-syscall-note"
-    lic "$1" busybox "$(mk BUSYBOX_SRC)/LICENSE"
-    lic "$1" musl "$(mk MUSL_SRC)/COPYRIGHT"
-    if [ "$2" = yes ]; then
-        lic "$1" direwolf "$(mk DIREWOLF_SRC)/LICENSE"
-        lic "$1" alsa-lib "$(mk ALSA_LIB_SRC)/COPYING"
-        lic "$1" libudev-zero "$(mk LIBUDEVZERO_SRC)/LICENSE"
-        lic "$1" ncurses "$(mk NCURSES_SRC)/COPYING"
-        lic "$1" libax25 "$(mk LIB_AX25_SRC)/COPYING.LIB"
-        lic "$1" ax25-tools "$(mk AX25_TOOLS_SRC)/COPYING"
-        lic "$1" ax25-apps "$(mk AX25_APPS_SRC)/COPYING"
-    fi
+# The list comes from the Makefile (LICENSE_FILES): only the selected programs.
+add_licenses() {  # <dir>
+    make -s licenses LICENSES_DIR="$1/licenses"
 }
 
 readme() {  # <dir> <variant> <text>
@@ -93,8 +74,6 @@ build_variant() {
     make
     base=$OUT/smallham-$name-x86_64
     pkg=smallham-$VERSION-$name-x86_64
-    ham=no
-    case $name in ham-*) ham=yes ;; esac
     disk=$(mk CONFIG_ROOTFS_DISK)
 
     case $kind in
@@ -107,7 +86,7 @@ build_variant() {
             cp "$base-disk.img" "$base-rootfs.squashfs" "$dir/"
         fi
         mv "$base-run.sh" "$dir/run.sh"
-        add_licenses "$dir" $ham
+        add_licenses "$dir"
         if [ "$disk" = y ]; then
             note="The system is on the disk image (disk.img): your changes are kept."
         else
@@ -129,7 +108,7 @@ $note"
         dir=$STAGE/$pkg
         mkdir -p "$dir"
         cp "$base.iso" "$base-disk.vmdk" "$base-rootfs.squashfs" "$dir/"
-        add_licenses "$dir" $ham
+        add_licenses "$dir"
         readme "$dir" "$name" "VirtualBox, the easy way: import this file (a separate download
 on the release page) with File > Import Appliance:
 

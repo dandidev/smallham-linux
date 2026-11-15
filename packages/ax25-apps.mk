@@ -21,6 +21,9 @@ AX25_APPS_CFLAGS := "-Os -Wno-error=incompatible-pointer-types"
 # --------------------------------------------------------------------
 
 PKG_FEATURES += AX25_APPS|ax25-apps
+PKG_LICENSES += AX25_APPS|ax25-apps|$(AX25_APPS_SRC)/COPYING
+PKG_LICENSES += AX25_APPS|libax25|$(LIB_AX25_SRC)/COPYING.LIB
+PKG_LICENSES += AX25_APPS|ncurses|$(NCURSES_SRC)/COPYING
 
 PKG_BINS += AX25_APPS_CALL|$(AX25_APPS_PREFIX)/usr/bin/call
 PKG_BINS += AX25_APPS_LISTEN|$(AX25_APPS_PREFIX)/usr/bin/listen

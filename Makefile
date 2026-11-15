@@ -244,10 +244,35 @@ BUILD_PKGS   := $(sort $(BUILD_PKGS))
 RUNTIME_BINS := $(sort $(RUNTIME_BINS))
 RUNTIME_DIRS := $(sort $(RUNTIME_DIRS))
 
+# License texts of the programs in the image, as <name>|<file>: copied to
+# licenses/<name>/ in the ISO and in the release files.
+# PKG_LICENSES entries (packages/*.mk): FEATURE|<name>|<file>
+LICENSE_FILES := smallham|LICENSE \
+    linux|$(KERNEL_SRC)/COPYING \
+    linux|$(KERNEL_SRC)/LICENSES/preferred/GPL-2.0 \
+    linux|$(KERNEL_SRC)/LICENSES/exceptions/Linux-syscall-note \
+    busybox|$(BUSYBOX_SRC)/LICENSE \
+    musl|$(MUSL_SRC)/COPYRIGHT
+
+define ProcessLicense
+$(if $(CONFIG_$(call _split,1,$(1))),\
+     $(eval LICENSE_FILES += $(call _split,2,$(1))|$(call _split,3,$(1))))
+endef
+
+$(foreach l,$(PKG_LICENSES), $(call ProcessLicense,$l))
+LICENSE_FILES := $(sort $(LICENSE_FILES))
+
+# $(1): destination directory
+define copy_licenses
+	for l in $(foreach l,$(LICENSE_FILES),'$l'); do \
+	  mkdir -p $(1)/$${l%%|*} && cp $${l#*|} $(1)/$${l%%|*}/ || exit 1; \
+	done
+endef
+
 # --------------------------------------------------------------------
 
 .PHONY: all distro kernel kernel-headers busybox rootfs initramfs fs-init extras \
-        run run-script iso ova release menuconfig defconfig oldconfig savedefconfig \
+        run run-script iso ova licenses release menuconfig defconfig oldconfig savedefconfig \
         clean clean-distro dbg-vars FORCE
 
 all: distro
@@ -267,6 +292,12 @@ extras: $(BUILD_PKGS)
 # Release files in build/release/<version>/ (see scripts/release.sh).
 release:
 	scripts/release.sh
+
+# License texts of the selected programs into LICENSES_DIR (used by
+# release.sh). Needs the sources: run it after 'make'.
+LICENSES_DIR ?= $(BUILD)/licenses
+licenses:
+	$(call copy_licenses,$(LICENSES_DIR))
 
 # Print one variable, e.g. 'make -s print-KERNEL_URL' (used by release.sh).
 print-%:
@@ -545,11 +576,12 @@ iso: distro
 	cp $(OUT_BZIMAGE) $(ISO_DIR)/bzImage
 	cp $(INITRAMFS) $(ISO_DIR)/initrd.xz
 	cp $(ISOLINUX_DIR)/isolinux.bin $(ISOLINUX_DIR)/ldlinux.c32 $(ISO_DIR)/isolinux/
+	$(call copy_licenses,$(ISO_DIR)/licenses)
 	printf 'DEFAULT linux\nLABEL linux\n    KERNEL /bzImage\n    APPEND initrd=/initrd.xz %s\n' \
 	  "$(KERNEL_CMDLINE)" > $(ISO_DIR)/isolinux/isolinux.cfg
 	genisoimage -o $(ISO_IMG) -b isolinux/isolinux.bin \
 	  -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 \
-	  -boot-info-table -iso-level 3 -quiet $(ISO_DIR)
+	  -boot-info-table -iso-level 3 -R -J -quiet $(ISO_DIR)
 ifeq ($(CONFIG_ROOTFS_DISK),y)
 	rm -f $(VMDK)
 	qemu-img convert -f raw -O vmdk $(IMG) $(VMDK)

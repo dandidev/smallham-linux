@@ -17,6 +17,8 @@ ALSA_UTILS_LDFLAGS := -L$(ALSA_PREFIX)/usr/lib -lasound -lm -lpthread -static
 
 #----------------|-KCONFIG VAR-----|GOAL NAME---------
 PKG_FEATURES 	+= ALSA_UTILS_APLAY|alsa-utils
+PKG_LICENSES += ALSA_UTILS_APLAY|alsa-utils|$(ALSA_UTILS_SRC)/COPYING
+PKG_LICENSES += ALSA_UTILS_APLAY|alsa-lib|$(ALSA_LIB_SRC)/COPYING
 
 #----------------|-KCONFIG VAR-----|BINARYs PATH-----------------------
 PKG_BINS 		+= ALSA_UTILS_APLAY|$(ALSA_UTILS_PREFIX)/usr/bin/aplay

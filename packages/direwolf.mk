@@ -22,6 +22,11 @@ DIREWOLF_CMAKE_EXE_LINKER_FLAGS := "-Wl,--whole-archive $(ALSA_LIB_PREFIX)/usr/l
 
 PKG_FEATURES += DIREWOLF|direwolf
 
+# License texts: FEATURE|<name>|<file>, also for the libraries linked in
+PKG_LICENSES += DIREWOLF|direwolf|$(DIREWOLF_SRC)/LICENSE
+PKG_LICENSES += DIREWOLF|alsa-lib|$(ALSA_LIB_SRC)/COPYING
+PKG_LICENSES += DIREWOLF|libudev-zero|$(LIBUDEVZERO_SRC)/LICENSE
+
 PKG_BINS += DIREWOLF|$(DIREWOLF_PREFIX)/usr/bin/direwolf
 # APRS symbol and device tables (symbols-new.txt, tocalls.txt, ...)
 PKG_DIRS += DIREWOLF|$(DIREWOLF_PREFIX)/usr/share/direwolf:/usr/share/direwolf
