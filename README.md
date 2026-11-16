@@ -26,8 +26,8 @@ Download a file from the
 [latest release](https://github.com/dandidev/smallham-linux/releases/latest)
 and start it in QEMU (only `qemu-system-x86_64` is needed):
 ```shell
-tar xf smallham-v0.7-base-initramfs-x86_64.tar.xz
-cd smallham-v0.7-base-initramfs-x86_64
+tar xf smallham-v0.8-base-initramfs-x86_64.tar.xz
+cd smallham-v0.8-base-initramfs-x86_64
 ./run.sh        # type 'reboot' to leave
 ```
 The other files are described in [Release files](#release-files). For

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.8
 
 - Fix: the writable ext2 partition of the persistent disk was never
   unmounted cleanly ("EXT2-fs: mounting unchecked fs" at every boot). It
