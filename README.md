@@ -166,7 +166,7 @@ the profile later.
     - In the running system the two layers are at `/mnt/ro` (squashfs) and `/mnt/rw` (ext2, your changes in `/mnt/rw/rw_root`). At `reboot` and `poweroff`, `/etc/init.d/rcK` stops the programs and remounts `/mnt/rw` read-only, so the ext2 partition is clean at the next boot.
     - `fs_init` finds the disk by its content (a squashfs and an ext2 partition), on any controller the kernel has a driver for, and waits up to 10 seconds for slow devices (`fs_wait=<seconds>` on the kernel command line). If no disk is found, it lists the block devices and the disk drivers of the kernel. `squashfs_dev=/dev/vda1 rw_dev=/dev/vda2` on the kernel command line selects the partitions by name.
 - **Console**: VGA screen and PS/2 keyboard, or serial port (`ttyS0`, QEMU runs with `-nographic`)
-- **ACPI**: `poweroff` switches off the virtual machine (without it use `reboot`)
+- **ACPI**: `poweroff` switches off the virtual machine (without it use `reboot`). It also turns on PCI, which the ACPI tables need: the base image then needs 17 MB of RAM instead of 16
 
 #### Kernel drivers
 - Disk controller (only with `Persistent disk`), the platform turns on one:

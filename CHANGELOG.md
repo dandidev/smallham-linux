@@ -8,6 +8,9 @@
   `fs_init` moves both layers into the new root (`/mnt/ro`, `/mnt/rw`), and
   the new `/etc/init.d/rcK` (inittab `::shutdown`) stops the programs and
   remounts `/mnt/rw` read-only before reboot or poweroff.
+- Fix: with the ACPI option `poweroff` really switches off the VM. The
+  option also turns on PCI now; without it the kernel could not load the
+  ACPI tables and only halted.
 
 ## v0.7 – VirtualBox appliance and more drivers
 

@@ -153,6 +153,9 @@ config ACPI_POWEROFF
       Without ACPI 'poweroff' only halts the CPU. Use 'reboot' to
       leave QEMU instead ('make run' uses -no-reboot).
 
+      Also turns on PCI: the ACPI tables of the VM use it. The base
+      image (no PCI devices) then needs 17 MB of RAM instead of 16.
+
 endmenu
 
 menu "Kernel drivers"
