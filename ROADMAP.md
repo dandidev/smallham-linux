@@ -25,3 +25,18 @@ Planned work and open questions. Nothing here is done yet.
 
 ## Optimization
 - Faster boot: measure it with bootchart and remove the slow parts.
+
+## Homa (branch `feature/homa-experimental`)
+The Homa image is for functional tests, development and learning, not for
+performance measurements. Open work:
+- Test `homa/start-vm.sh` on the `virbr0` bridge again. After the rebase onto
+  v0.7 the two VMs were only tested on a QEMU socket network.
+- A short guide for learning: what `homa_test`, `cp_node` and
+  `/proc/net/homa_metrics` show, with a few exercises.
+- Kernel clock: the VMs use refined-jiffies (`notsc`, no HPET), 4 ms
+  resolution. Try kvmclock (`KVM_GUEST`, `PARAVIRT`) or remove `notsc`.
+- More than two VMs (e.g. a small `cp_node` cluster) for functional tests.
+- The test programs are linked statically with glibc (C++), so they cannot go
+  into release files. Build them with musl and a C++ library for musl.
+- Later, real hardware: a driver for the network card, SMP and an exact
+  clock; boot with PXE or from USB.
