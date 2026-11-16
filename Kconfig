@@ -147,6 +147,19 @@ config ROOTFS_DISK
 
 endchoice
 
+config RW_SIZE_MB
+    int "Writable partition size (MB)"
+    depends on ROOTFS_DISK
+    range 1 4096
+    default 1
+    help
+      Size of the writable partition of the disk image: your files and
+      changes are kept here. The disk image is 1 MB (partition table)
+      + 6 MB (squashfs) + this size. 1 MB is the smallest image; make
+      it bigger if you keep more files on the system.
+
+      Rebuilding the disk image wipes the writable partition.
+
 choice
     prompt "Console"
     default CONSOLE_VGA

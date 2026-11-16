@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- New option "Writable partition size (MB)" for the persistent disk
+  (default 1 MB, as before). The disk image is 1 MB + 6 MB (squashfs) + this
+  size.
+
 ## v0.8
 
 - Fix: the writable ext2 partition of the persistent disk was never

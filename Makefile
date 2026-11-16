@@ -70,8 +70,10 @@ INITRAMFS_LIST := $(BUILD)/initramfs.list
 XZ_INITRAMFS := xz --check=crc32 --lzma2=preset=9e,dict=1MiB
 
 IMG := $(OUT)/$(OUT_NAME)-disk.img
-DISK_SIZE_MB := 8
 SQUASHFS_SIZE_MB := 6
+RW_SIZE_MB := $(or $(CONFIG_RW_SIZE_MB),1)
+# 1 MB before the first partition (partition table), then the two partitions
+DISK_SIZE_MB := $(shell echo $$((1 + $(SQUASHFS_SIZE_MB) + $(RW_SIZE_MB))))
 SQUASHFS_IMG := $(OUT)/$(OUT_NAME)-rootfs.squashfs
 RW_IMG := $(BUILD)/rw.img
 
