@@ -19,6 +19,8 @@
   disk is on the SATA controller of a new VM.
 - The ISO (and so the `.ova`) has the license texts in `licenses/`, like
   the other release files. The ISO has Rock Ridge and Joliet names.
+- The sources archive has the whole Dire Wolf source again, with its
+  `doc/` folder of PDF manuals (v0.6 left it out).
 
 ## v0.6 – first release with downloadable files
 

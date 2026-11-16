@@ -159,8 +159,7 @@ gitpkg() {  # <name> <source dir> <commit> [<pathspec>...]
     git -C "$dir" archive --prefix="$name/" "$commit" -- "$@" |
         gzip -9n > "$src/$name-$(echo "$commit" | cut -c1-12).tar.gz"
 }
-# Without doc/: 20 MB of PDF manuals, not needed to build the program.
-gitpkg direwolf "$(mk DIREWOLF_SRC)" "$(mk DIREWOLF_COMMIT)" . ':(exclude)doc'
+gitpkg direwolf "$(mk DIREWOLF_SRC)" "$(mk DIREWOLF_COMMIT)"
 gitpkg libax25 "$(mk LIB_AX25_SRC)" "$(mk LIB_AX25_COMMIT)"
 gitpkg ax25-tools "$(mk AX25_TOOLS_SRC)" "$(mk AX25_TOOLS_COMMIT)"
 gitpkg ax25-apps "$(mk AX25_APPS_SRC)" "$(mk AX25_APPS_COMMIT)"
@@ -197,7 +196,6 @@ cp "$DL/$ktar" "$REL/"
     echo "everything. The git sources were fetched from:"
     echo
     echo "- direwolf: $(mk DIREWOLF_REPO) $(mk DIREWOLF_COMMIT)"
-    echo "  (without the doc/ folder of PDF manuals; they are in the repository)"
     echo "- libax25: $(mk LIB_AX25_REPO) $(mk LIB_AX25_COMMIT)"
     echo "- ax25-tools: $(mk AX25_TOOLS_REPO) $(mk AX25_TOOLS_COMMIT)"
     echo "- ax25-apps: $(mk AX25_APPS_REPO) $(mk AX25_APPS_COMMIT)"
