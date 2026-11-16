@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Fix: the writable ext2 partition of the persistent disk was never
+  unmounted cleanly ("EXT2-fs: mounting unchecked fs" at every boot). It
+  stayed mounted in the initramfs, out of reach after switch_root. Now
+  `fs_init` moves both layers into the new root (`/mnt/ro`, `/mnt/rw`), and
+  the new `/etc/init.d/rcK` (inittab `::shutdown`) stops the programs and
+  remounts `/mnt/rw` read-only before reboot or poweroff.
+
 ## v0.7 – VirtualBox appliance and more drivers
 
 - More drivers can be selected in "Kernel drivers": disk controllers
