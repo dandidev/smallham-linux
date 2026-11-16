@@ -141,22 +141,55 @@ config ROOTFS_INITRAMFS
 config ROOTFS_DISK
     bool "Persistent disk (squashfs + overlay)"
     help
-      Read-only squashfs root with a writable ext2 overlay on a disk
-      image. A small init (fs_init) in the initramfs mounts it.
+      Read-only squashfs root with a writable ext2 (or ext4) overlay on
+      a disk image. A small init (fs_init) in the initramfs mounts it.
       Needs more RAM than the initramfs only system (about 20 MB to boot).
+
+endchoice
+
+choice
+    prompt "Writable partition filesystem"
+    depends on ROOTFS_DISK
+    default RW_FS_EXT2
+    help
+      The filesystem of the writable partition (your files and changes).
+
+config RW_FS_EXT2
+    bool "ext2 (smallest)"
+    help
+      The smallest kernel. Safe with a clean 'reboot' or 'poweroff'.
+      After a hard power off the filesystem is not checked: changes
+      written at that moment can damage it.
+
+config RW_FS_EXT4
+    bool "ext4 (journal)"
+    help
+      With a journal: after a hard power off (power loss, "Power off
+      the machine" in VirtualBox) the kernel repairs the filesystem at
+      the next boot. The last changes before the power off may be lost,
+      but the filesystem stays consistent. Also no 2038 limit for file
+      times.
+
+      Recommended for real hardware and USB sticks. Costs a bigger
+      kernel, and the journal needs at least 2 MB writable partition
+      (about 1 MB of it is the journal). The ext4 driver also mounts
+      ext2 disks.
 
 endchoice
 
 config RW_SIZE_MB
     int "Writable partition size (MB)"
     depends on ROOTFS_DISK
+    range 2 4096 if RW_FS_EXT4
     range 1 4096
+    default 4 if RW_FS_EXT4
     default 1
     help
       Size of the writable partition of the disk image: your files and
       changes are kept here. The disk image is 1 MB (partition table)
       + 6 MB (squashfs) + this size. 1 MB is the smallest image; make
-      it bigger if you keep more files on the system.
+      it bigger if you keep more files on the system. With ext4 at
+      least 2 MB (the journal takes about 1 MB), 4 MB by default.
 
       Rebuilding the disk image wipes the writable partition.
 

@@ -135,6 +135,13 @@ BUSYBOX_FRAGMENTS += disk
 QEMU_ARGS += $(QEMU_DISK)
 endif
 
+# Filesystem of the writable partition: kernel driver, mkfs and the type
+# fs_init mounts it with.
+RW_FSTYPE := $(if $(CONFIG_RW_FS_EXT4),ext4,ext2)
+ifeq ($(CONFIG_ROOTFS_DISK),y)
+KERNEL_FRAGMENTS += fs-$(RW_FSTYPE)
+endif
+
 ifneq ($(filter virtio-%,$(DISK_DRIVERS)),)
 KERNEL_FRAGMENTS += virtio
 NEED_VIRTIO := y
@@ -472,7 +479,7 @@ FS_INIT := $(BUILD)/fs_init/init
 
 fs-init: musl kernel-headers
 	@mkdir -p $(dir $(FS_INIT))
-	$(MUSL_CC) -Os -static -I$(LINUX_HEADERS_DIR)/include -DDISK_DRIVERS='"$(strip $(DISK_DRIVERS) $(if $(CONFIG_USB_STORAGE),usb-storage))"' \
+	$(MUSL_CC) -Os -static -I$(LINUX_HEADERS_DIR)/include -DDISK_DRIVERS='"$(strip $(DISK_DRIVERS) $(if $(CONFIG_USB_STORAGE),usb-storage))"' -DRW_FSTYPE='"$(RW_FSTYPE)"' \
 	  $(FS_INIT_SRC)/fs_init.c -o $(FS_INIT)
 	strip --strip-all $(FS_INIT)
 
@@ -516,7 +523,7 @@ $(IMG): rootfs
 	dd if=$(SQUASHFS_IMG) of=$(IMG) bs=1M seek=$$(($(SQUASHFS_START) * 512)) \
 	  oflag=seek_bytes conv=notrunc status=none
 	truncate -s $$(($(RW_SECTORS) * 512)) $(RW_IMG)
-	mkfs.ext2 -q -F $(RW_IMG)
+	mkfs.$(RW_FSTYPE) -q -F $(RW_IMG)
 	dd if=$(RW_IMG) of=$(IMG) bs=1M seek=$$(($(RW_START) * 512)) \
 	  oflag=seek_bytes conv=notrunc status=none
 	rm -f $(RW_IMG)

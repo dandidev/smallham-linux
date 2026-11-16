@@ -5,6 +5,11 @@
 - New option "Writable partition size (MB)" for the persistent disk
   (default 1 MB, as before). The disk image is 1 MB + 6 MB (squashfs) + this
   size.
+- New option "Writable partition filesystem": `ext2` (default) or `ext4`
+  with a journal, which repairs the filesystem after a hard power off.
+  Recommended for real hardware and USB sticks; the kernel is about 145 KB
+  bigger and the writable partition is 4 MB by default (at least 2 MB). The
+  ext4 kernel also mounts ext2 disks.
 
 ## v0.8
 
