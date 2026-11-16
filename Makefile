@@ -6,7 +6,8 @@
 #   make menuconfig      select features
 #   make                 build (kernel, initramfs and disk.img if selected)
 #   make run             boot in QEMU
-#   make iso             VirtualBox ISO (+ .vmdk)
+#   make iso             VirtualBox ISO (+ .vmdk with a persistent disk)
+#   make ova             VirtualBox appliance (.ova) with the ISO and the disk
 #   make release         all release files in build/release/<version>/
 
 KCONFIG_FILE := Kconfig
@@ -83,6 +84,7 @@ RW_SECTORS := $(shell echo $$(($(DISK_SIZE_MB) * 2048 - $(RW_START))))
 ISO_DIR := $(BUILD)/iso
 ISO_IMG := $(OUT)/$(OUT_NAME).iso
 VMDK := $(OUT)/$(OUT_NAME)-disk.vmdk
+OVA := $(OUT)/$(OUT_NAME).ova
 
 # --------------------------------------------------------------------
 # Feature selection: .config -> kernel/BusyBox config fragments, rootfs
@@ -94,16 +96,26 @@ ROOTFS_OVERLAYS := base
 KERNEL_CMDLINE := notsc
 QEMU_ARGS :=
 
-ifeq ($(CONFIG_PLATFORM_VBOX),y)
-DISK_DEV := sda
-DISK_KERNEL_FRAGMENT := disk-virtio-scsi
-QEMU_DISK = -device virtio-scsi-pci,id=scsi0 -drive file=$(IMG),format=raw,if=none,id=disk0 \
-            -device scsi-hd,drive=disk0,bus=scsi0.0
-else
-DISK_DEV := vda
-DISK_KERNEL_FRAGMENT := disk-virtio-blk
-QEMU_DISK = -drive file=$(IMG),format=raw,if=virtio
+# Disk controllers in the kernel. 'make run' attaches the disk to the
+# first one: on VirtualBox VirtIO SCSI is preferred, as in the VM.
+DISK_DRIVERS :=
+ifeq ($(CONFIG_DISK_VIRTIO_BLK),y)
+DISK_DRIVERS += virtio-blk
 endif
+ifeq ($(CONFIG_DISK_VIRTIO_SCSI),y)
+DISK_DRIVERS += virtio-scsi
+endif
+ifeq ($(CONFIG_DISK_AHCI),y)
+DISK_DRIVERS += ahci
+endif
+QEMU_DISK_DRIVER := $(firstword $(if $(CONFIG_PLATFORM_VBOX),$(filter virtio-scsi,$(DISK_DRIVERS))) $(DISK_DRIVERS))
+
+QEMU_DISK_virtio-blk = -drive file=$(IMG),format=raw,if=virtio
+QEMU_DISK_virtio-scsi = -device virtio-scsi-pci,id=scsi0 -drive file=$(IMG),format=raw,if=none,id=disk0 \
+            -device scsi-hd,drive=disk0,bus=scsi0.0
+QEMU_DISK_ahci = -device ahci,id=ahci0 -drive file=$(IMG),format=raw,if=none,id=disk0 \
+            -device ide-hd,drive=disk0,bus=ahci0.0
+QEMU_DISK = $(QEMU_DISK_$(QEMU_DISK_DRIVER))
 
 ifeq ($(CONFIG_CONSOLE_SERIAL),y)
 KERNEL_FRAGMENTS += console-serial
@@ -116,19 +128,35 @@ CONSOLE_TTY := tty1
 endif
 
 ifeq ($(CONFIG_ROOTFS_DISK),y)
-KERNEL_FRAGMENTS += rootfs-disk virtio $(DISK_KERNEL_FRAGMENT)
+KERNEL_FRAGMENTS += rootfs-disk $(addprefix disk-,$(DISK_DRIVERS))
 BUSYBOX_FRAGMENTS += disk
-KERNEL_CMDLINE += squashfs_dev=/dev/$(DISK_DEV)1 rw_dev=/dev/$(DISK_DEV)2
 QEMU_ARGS += $(QEMU_DISK)
+endif
+
+ifneq ($(filter virtio-%,$(DISK_DRIVERS)),)
+KERNEL_FRAGMENTS += virtio
 NEED_VIRTIO := y
 endif
 
 ifeq ($(CONFIG_NET),y)
-KERNEL_FRAGMENTS += net virtio
+KERNEL_FRAGMENTS += net
 BUSYBOX_FRAGMENTS += net
 ROOTFS_OVERLAYS += network
-QEMU_ARGS += -netdev user,id=net0 -device virtio-net-pci,netdev=net0
+endif
+
+ifeq ($(CONFIG_NET_VIRTIO),y)
+KERNEL_FRAGMENTS += net-virtio virtio
+QEMU_NIC := virtio-net-pci
 NEED_VIRTIO := y
+endif
+
+ifeq ($(CONFIG_NET_E1000),y)
+KERNEL_FRAGMENTS += net-e1000
+QEMU_NIC ?= e1000
+endif
+
+ifneq ($(QEMU_NIC),)
+QEMU_ARGS += -netdev user,id=net0 -device $(QEMU_NIC),netdev=net0
 endif
 
 ifeq ($(CONFIG_PLATFORM_VBOX)$(NEED_VIRTIO),yy)
@@ -216,10 +244,35 @@ BUILD_PKGS   := $(sort $(BUILD_PKGS))
 RUNTIME_BINS := $(sort $(RUNTIME_BINS))
 RUNTIME_DIRS := $(sort $(RUNTIME_DIRS))
 
+# License texts of the programs in the image, as <name>|<file>: copied to
+# licenses/<name>/ in the ISO and in the release files.
+# PKG_LICENSES entries (packages/*.mk): FEATURE|<name>|<file>
+LICENSE_FILES := smallham|LICENSE \
+    linux|$(KERNEL_SRC)/COPYING \
+    linux|$(KERNEL_SRC)/LICENSES/preferred/GPL-2.0 \
+    linux|$(KERNEL_SRC)/LICENSES/exceptions/Linux-syscall-note \
+    busybox|$(BUSYBOX_SRC)/LICENSE \
+    musl|$(MUSL_SRC)/COPYRIGHT
+
+define ProcessLicense
+$(if $(CONFIG_$(call _split,1,$(1))),\
+     $(eval LICENSE_FILES += $(call _split,2,$(1))|$(call _split,3,$(1))))
+endef
+
+$(foreach l,$(PKG_LICENSES), $(call ProcessLicense,$l))
+LICENSE_FILES := $(sort $(LICENSE_FILES))
+
+# $(1): destination directory
+define copy_licenses
+	for l in $(foreach l,$(LICENSE_FILES),'$l'); do \
+	  mkdir -p $(1)/$${l%%|*} && cp $${l#*|} $(1)/$${l%%|*}/ || exit 1; \
+	done
+endef
+
 # --------------------------------------------------------------------
 
 .PHONY: all distro kernel kernel-headers busybox rootfs initramfs fs-init extras \
-        run run-script iso release menuconfig defconfig oldconfig savedefconfig \
+        run run-script iso ova licenses release menuconfig defconfig oldconfig savedefconfig \
         clean clean-distro dbg-vars FORCE
 
 all: distro
@@ -232,13 +285,19 @@ endif
 
 # Keeps the disk image (the data on its writable partition).
 clean-distro:
-	rm -rf $(ROOTFS_DIR) $(ISO_DIR) $(OUT_BZIMAGE) $(INITRAMFS) $(SQUASHFS_IMG) $(ISO_IMG) $(VMDK)
+	rm -rf $(ROOTFS_DIR) $(ISO_DIR) $(OUT_BZIMAGE) $(INITRAMFS) $(SQUASHFS_IMG) $(ISO_IMG) $(VMDK) $(OVA)
 
 extras: $(BUILD_PKGS)
 
 # Release files in build/release/<version>/ (see scripts/release.sh).
 release:
 	scripts/release.sh
+
+# License texts of the selected programs into LICENSES_DIR (used by
+# release.sh). Needs the sources: run it after 'make'.
+LICENSES_DIR ?= $(BUILD)/licenses
+licenses:
+	$(call copy_licenses,$(LICENSES_DIR))
 
 # Print one variable, e.g. 'make -s print-KERNEL_URL' (used by release.sh).
 print-%:
@@ -251,6 +310,8 @@ dbg-vars:
 	@echo "BUSYBOX_FRAGMENTS = $(BUSYBOX_FRAGMENT_FILES)"
 	@echo "ROOTFS_OVERLAYS   = $(ROOTFS_OVERLAYS)"
 	@echo "KERNEL_CMDLINE    = $(KERNEL_CMDLINE)"
+	@echo "DISK_DRIVERS      = $(DISK_DRIVERS)"
+	@echo "QEMU_ARGS         = $(QEMU_ARGS)"
 	@echo "BUILD_PKGS        = $(BUILD_PKGS)"
 	@echo "RUNTIME_BINS      = $(RUNTIME_BINS)"
 	@echo "RUNTIME_DIRS      = $(RUNTIME_DIRS)"
@@ -403,7 +464,8 @@ FS_INIT := $(BUILD)/fs_init/init
 
 fs-init: musl kernel-headers
 	@mkdir -p $(dir $(FS_INIT))
-	$(MUSL_CC) -Os -static -I$(LINUX_HEADERS_DIR)/include $(FS_INIT_SRC)/fs_init.c -o $(FS_INIT)
+	$(MUSL_CC) -Os -static -I$(LINUX_HEADERS_DIR)/include -DDISK_DRIVERS='"$(strip $(DISK_DRIVERS) $(if $(CONFIG_USB_STORAGE),usb-storage))"' \
+	  $(FS_INIT_SRC)/fs_init.c -o $(FS_INIT)
 	strip --strip-all $(FS_INIT)
 
 # Only fs_init: it mounts the root filesystem from the disk.
@@ -487,9 +549,24 @@ run-script:
 
 ISOLINUX_DIR ?= /usr/lib/syslinux/bios
 
-ifneq ($(filter iso,$(MAKECMDGOALS)),)
+# VirtualBox appliance (.ova) for the persistent disk: memory of the VM,
+# its disk controller and network card come from the selected drivers.
+VBOX_MEM ?= 32
+OVA_DISK := $(firstword $(filter virtio-scsi,$(DISK_DRIVERS)) $(filter ahci,$(DISK_DRIVERS)))
+OVA_NIC := $(if $(CONFIG_NET_VIRTIO),virtio,$(if $(CONFIG_NET_E1000),e1000,none))
+
+ifneq ($(filter iso ova,$(MAKECMDGOALS)),)
 ifneq ($(CONFIG_PLATFORM_VBOX),y)
-$(error 'make iso' needs 'Target platform: VirtualBox' (make menuconfig))
+$(error 'make $(filter iso ova,$(MAKECMDGOALS))' needs 'Target platform: VirtualBox' (make menuconfig))
+endif
+endif
+
+ifneq ($(filter ova,$(MAKECMDGOALS)),)
+ifneq ($(CONFIG_ROOTFS_DISK),y)
+$(error 'make ova' needs 'Root filesystem: Persistent disk' (without it use the ISO alone: make iso))
+endif
+ifeq ($(OVA_DISK),)
+$(error 'make ova': VirtualBox has no $(DISK_DRIVERS) disk controller, turn on DISK_VIRTIO_SCSI or DISK_AHCI (make menuconfig))
 endif
 endif
 
@@ -499,18 +576,26 @@ iso: distro
 	cp $(OUT_BZIMAGE) $(ISO_DIR)/bzImage
 	cp $(INITRAMFS) $(ISO_DIR)/initrd.xz
 	cp $(ISOLINUX_DIR)/isolinux.bin $(ISOLINUX_DIR)/ldlinux.c32 $(ISO_DIR)/isolinux/
+	$(call copy_licenses,$(ISO_DIR)/licenses)
 	printf 'DEFAULT linux\nLABEL linux\n    KERNEL /bzImage\n    APPEND initrd=/initrd.xz %s\n' \
 	  "$(KERNEL_CMDLINE)" > $(ISO_DIR)/isolinux/isolinux.cfg
 	genisoimage -o $(ISO_IMG) -b isolinux/isolinux.bin \
 	  -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 \
-	  -boot-info-table -iso-level 3 -quiet $(ISO_DIR)
+	  -boot-info-table -iso-level 3 -R -J -quiet $(ISO_DIR)
 ifeq ($(CONFIG_ROOTFS_DISK),y)
 	rm -f $(VMDK)
 	qemu-img convert -f raw -O vmdk $(IMG) $(VMDK)
-	@echo "Created $(ISO_IMG) and $(VMDK) (attach it to a VirtIO SCSI controller)"
+	@echo "Created $(ISO_IMG) and $(VMDK) (disk controller: $(DISK_DRIVERS))"
 else
 	@echo "Created $(ISO_IMG)"
 endif
+
+# The ISO, the disk and the VM settings in one file: importing it creates a
+# VM with the right disk controller and network card.
+ova: iso
+	scripts/make-ova.sh $(OVA) $(OUT_NAME) $(ISO_IMG) $(IMG) $(VBOX_MEM) \
+	  $(OVA_DISK) $(OVA_NIC) $(if $(CONFIG_USB),y,n)
+	@echo "Created $(OVA) (VM: $(OVA_DISK) disk controller, $(OVA_NIC) network card)"
 
 # --------------------------------------------------------------------
 

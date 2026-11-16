@@ -21,6 +21,8 @@ AX25_TOOLS_CFLAGS := "-Os -Wno-error=incompatible-pointer-types"
 # --------------------------------------------------------------------
 
 PKG_FEATURES += AX25_TOOLS|ax25-tools
+PKG_LICENSES += AX25_TOOLS|ax25-tools|$(AX25_TOOLS_SRC)/COPYING
+PKG_LICENSES += AX25_TOOLS|libax25|$(LIB_AX25_SRC)/COPYING.LIB
 
 PKG_BINS += AX25_TOOLS_NETROMD|$(AX25_TOOLS_PREFIX)/usr/sbin/netromd
 PKG_BINS += AX25_TOOLS_KISS|$(AX25_TOOLS_PREFIX)/usr/sbin/kissattach

@@ -18,7 +18,7 @@ A tiny educational Linux (under 1 MB) that boots in QEMU or VirtualBox with
 - **Configured with menuconfig:** profiles (base, persistent, ham radio) and
   one option for each feature.
 - **Built from source without root:** all programs are static (musl). The
-  images run in QEMU and VirtualBox (ISO).
+  images run in QEMU and VirtualBox (ISO, or an `.ova` appliance to import).
 
 ## Quick start
 ### Download and run
@@ -26,8 +26,8 @@ Download a file from the
 [latest release](https://github.com/dandidev/smallham-linux/releases/latest)
 and start it in QEMU (only `qemu-system-x86_64` is needed):
 ```shell
-tar xf smallham-v0.6-base-initramfs-x86_64.tar.xz
-cd smallham-v0.6-base-initramfs-x86_64
+tar xf smallham-v0.7-base-initramfs-x86_64.tar.xz
+cd smallham-v0.7-base-initramfs-x86_64
 ./run.sh        # type 'reboot' to leave
 ```
 The other files are described in [Release files](#release-files). For
@@ -159,15 +159,26 @@ the profile later.
 
 #### System
 - **Image name**: part of the output file names. By default it comes from the profile (`base` or `ham`), the root filesystem (`initramfs` or `squashfs`) and the platform (`-vbox` for VirtualBox), e.g. `base-initramfs`, `base-squashfs`, `ham-squashfs-vbox`
-- **Target platform**: `QEMU` (disk: virtio-blk, `/dev/vda`) or `VirtualBox (ISO)` (disk: VirtIO SCSI, `/dev/sda`)
+- **Target platform**: `QEMU` (disk: virtio-blk, `/dev/vda`) or `VirtualBox (ISO)` (disk: VirtIO SCSI, `/dev/sda`). Other disk controllers and network cards: see *Kernel drivers*
 - **Root filesystem**:
   - `initramfs only`: the whole system is in RAM, changes are lost on reboot
   - `Persistent disk`: a read-only squashfs plus a writable ext2 partition, joined with overlayfs (`fs_init`); changes are kept
+    - `fs_init` finds the disk by its content (a squashfs and an ext2 partition), on any controller the kernel has a driver for, and waits up to 10 seconds for slow devices (`fs_wait=<seconds>` on the kernel command line). If no disk is found, it lists the block devices and the disk drivers of the kernel. `squashfs_dev=/dev/vda1 rw_dev=/dev/vda2` on the kernel command line selects the partitions by name.
 - **Console**: VGA screen and PS/2 keyboard, or serial port (`ttyS0`, QEMU runs with `-nographic`)
 - **ACPI**: `poweroff` switches off the virtual machine (without it use `reboot`)
 
 #### Kernel drivers
-- `NET` – network (virtio-net, IPv4, DHCP with `ifup` and `udhcpc`)
+- Disk controller (only with `Persistent disk`), the platform turns on one:
+  - `DISK_VIRTIO_BLK` – VirtIO block device (QEMU)
+  - `DISK_VIRTIO_SCSI` – VirtIO SCSI controller (VirtualBox)
+  - `DISK_AHCI` – SATA (AHCI) controller, the default controller of a new VirtualBox VM
+- `NET` – network (IPv4, DHCP with `ifup` and `udhcpc`), with a network card:
+  - `NET_VIRTIO` – virtio-net (on by default)
+  - `NET_E1000` – Intel PRO/1000, the default network card of a new VirtualBox VM
+
+Only the drivers you need are built in, to keep the kernel small. If your VM
+uses other hardware, turn on its driver and build again. `make run` attaches
+the disk and the network card to a driver you selected.
 - `USB` – USB host controllers (xHCI, EHCI), for USB devices passed to the VM
 - `USB_STORAGE` – USB drives, with FAT filesystem
 - `SOUND` – USB sound cards (ALSA)
@@ -249,6 +260,7 @@ Make targets:
 | `make` | builds the kernel, the initramfs and the disk image |
 | `make run` | starts the system in QEMU |
 | `make iso` | makes the VirtualBox ISO (and `.vmdk`) |
+| `make ova` | makes the VirtualBox appliance (`.ova`): the ISO, the disk and the VM settings in one file (only with a persistent disk) |
 | `make run-script` | writes the `make run` QEMU command as a script next to the output files |
 | `make release` | builds all release variants into `build/release/<version>/` (see [Release files](#release-files)) |
 | `make menuconfig`, `defconfig`, `<name>_defconfig`, `oldconfig`, `savedefconfig` | configuration |
@@ -269,7 +281,8 @@ into `build/release/<version>/`. The version comes from the git tag
 | `smallham-<version>-base-squashfs-x86_64.tar.xz` | `base_squashfs_defconfig` | QEMU: base system on a persistent disk, `run.sh` |
 | `smallham-<version>-ham-squashfs-x86_64.tar.xz` | `ham_defconfig` | QEMU: ham radio setup on a persistent disk, `run.sh` |
 | `smallham-<version>-base-initramfs-vbox-x86_64.iso` | `base_vbox_defconfig` | VirtualBox: boots from the ISO alone |
-| `smallham-<version>-ham-squashfs-vbox-x86_64.zip` | `ham_vbox_defconfig` | VirtualBox: ISO + `.vmdk` disk |
+| `smallham-<version>-ham-squashfs-vbox-x86_64.ova` | `ham_vbox_defconfig` | VirtualBox appliance: import it, the VM is ready to start |
+| `smallham-<version>-ham-squashfs-vbox-x86_64.zip` | `ham_vbox_defconfig` | VirtualBox: ISO + `.vmdk` disk, to set up the VM by hand |
 | `smallham-<version>-sources.tar` | | source code of SmallHam and of the programs in the images, except the kernel (list: `SOURCES.md` inside) |
 | `linux-<kernel version>.tar.xz` | | source code of the kernel (unmodified, the same file as on kernel.org) |
 | `SHA256SUMS` | | checksums: `sha256sum -c SHA256SUMS` |
@@ -314,7 +327,7 @@ qemu-system-x86_64 -m 32 -no-reboot \
   -kernel smallham-ham-squashfs-x86_64-bzImage \
   -initrd smallham-ham-squashfs-x86_64-initramfs.cpio.xz \
   -drive file=smallham-ham-squashfs-x86_64-disk.img,format=raw,if=virtio \
-  -append "notsc squashfs_dev=/dev/vda1 rw_dev=/dev/vda2" \
+  -append "notsc" \
   -netdev user,id=net0 -device virtio-net-pci,netdev=net0
 ```
 - Serial console: add `console=ttyS0` to `-append` and `-nographic` to QEMU
@@ -335,6 +348,7 @@ in `make menuconfig`), then make the ISO:
 ```shell
 make ham_vbox_defconfig     # or: make base_vbox_defconfig
 make iso
+make ova                    # only with a persistent disk (ham_vbox_defconfig)
 ```
 Output in `build/out/`:
 
@@ -342,12 +356,43 @@ Output in `build/out/`:
 |---|---|
 | `smallham-ham-squashfs-vbox-x86_64.iso` | bootable CD image with the kernel and the initramfs |
 | `smallham-ham-squashfs-vbox-x86_64-disk.vmdk` | the persistent disk in VirtualBox format (only with `Persistent disk`) |
+| `smallham-ham-squashfs-vbox-x86_64.ova` | VirtualBox appliance: the ISO, the disk and the VM settings in one file (`make ova`) |
 
-Copy these files to any computer with VirtualBox and set up a VM:
+#### Import the appliance (.ova)
+The easiest way: in VirtualBox choose **File > Import Appliance**, select the
+`.ova` file and press **Finish**. The new VM has the ISO in its optical drive,
+the disk on the right storage controller and the right network card; start
+it. From the command line:
+```shell
+VBoxManage import smallham-ham-squashfs-vbox-x86_64.ova --vsys 0 --vmname smallham
+VBoxManage startvm smallham
+```
+The disk and network drivers of your configuration decide the controller and
+the network card of the appliance (VirtIO SCSI or SATA, virtio-net or
+Intel PRO/1000).
+
+#### Set up a VM by hand
+Copy the `.iso` and the `.vmdk` to any computer with VirtualBox and set up a VM:
 - Type: Linux, 64-bit. Memory: 16 MB for the base image, 32 MB for the ham radio setup
 - Optical drive (IDE): the `.iso` file, boot from it
-- Persistent disk: add a **VirtIO SCSI** storage controller and attach the `.vmdk` file to it
+- Persistent disk: a **VirtIO SCSI** storage controller with the `.vmdk` file
 - Network: adapter type **Paravirtualized Network (virtio-net)**
+
+A new VM in the VirtualBox window puts the disk on a SATA controller and uses
+an Intel PRO/1000 network card. The `ham_vbox_defconfig` kernel has no drivers
+for them, and the boot stops with `fs_init: no disk with a squashfs and an
+ext2 partition found`. Change the settings step by step:
+1. **Settings > Storage**: select the `.vmdk` under *Controller: SATA* and
+   remove it (the *Remove Attachment* button), then press **OK**.
+2. Open **Settings > Storage** again, add a new controller
+   (*Add Controller* > **VirtIO SCSI**), and attach the `.vmdk` to it
+   (*Add Hard Disk* > choose the file). VirtualBox refuses to attach the
+   disk again before the first change is saved, this is why step 1 ends with OK.
+3. **Settings > Network > Adapter 1 > Advanced**: Adapter Type
+   **Paravirtualized Network (virtio-net)**.
+
+Or keep the VirtualBox defaults and turn on `DISK_AHCI` and `NET_E1000` in
+`make menuconfig` (Kernel drivers) before `make iso` or `make ova`.
 
 The same from the command line:
 ```shell
@@ -406,7 +451,7 @@ qemu-system-x86_64 -m 32 -no-reboot \
   -kernel build/out/smallham-ham-squashfs-x86_64-bzImage \
   -initrd build/out/smallham-ham-squashfs-x86_64-initramfs.cpio.xz \
   -drive file=build/out/smallham-ham-squashfs-x86_64-disk.img,format=raw,if=virtio \
-  -append "notsc squashfs_dev=/dev/vda1 rw_dev=/dev/vda2" \
+  -append "notsc" \
   -device qemu-xhci -device usb-host,vendorid=0x08bb,productid=0x2902 \
   -netdev bridge,id=net0,br=virbr0 \
   -device virtio-net-pci,netdev=net0,mac=52:54:00:12:34:56

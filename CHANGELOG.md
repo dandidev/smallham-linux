@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.7 – VirtualBox appliance and more drivers
+
+- More drivers can be selected in "Kernel drivers": disk controllers
+  (VirtIO block, VirtIO SCSI, SATA/AHCI) and network cards (virtio-net,
+  Intel PRO/1000). The platform still turns on only one of each.
+  AHCI and PRO/1000 are the defaults of a new VirtualBox VM.
+- `fs_init` finds the persistent disk by its content (squashfs + ext2
+  partition), so it works on every disk controller; the kernel command line
+  has no device names any more. It waits up to 10 seconds for slow devices.
+  If no disk is found, it lists the block devices and the disk drivers of
+  the kernel, with a hint.
+- `make ova` makes a VirtualBox appliance (`.ova`) with a persistent
+  disk: importing it creates a VM with the right storage controller and
+  network card, with the ISO and the disk attached. It is a new release file
+  for the VirtualBox ham radio setup.
+- README: step by step VirtualBox setup by hand, also for the case when the
+  disk is on the SATA controller of a new VM.
+- The ISO (and so the `.ova`) has the license texts in `licenses/`, like
+  the other release files. The ISO has Rock Ridge and Joliet names.
+- The sources archive has the whole Dire Wolf source again, with its
+  `doc/` folder of PDF manuals (v0.6 left it out).
+
 ## v0.6 – first release with downloadable files
 
 - Release files: QEMU packages with a `run.sh` (base on initramfs, base on a

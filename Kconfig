@@ -99,8 +99,9 @@ config PLATFORM_VBOX
     help
       'make iso' creates a bootable ISO (and a .vmdk disk with the
       persistent root). Attach the .vmdk to a "VirtIO SCSI" storage
-      controller (/dev/sda), and use the "virtio-net" network adapter.
-      'make run' boots the same setup in QEMU.
+      controller, and use the "virtio-net" network adapter (or choose
+      other drivers in "Kernel drivers"). 'make run' boots the same
+      setup in QEMU.
 
 endchoice
 
@@ -156,12 +157,54 @@ endmenu
 
 menu "Kernel drivers"
 
-config NET
-    bool "Network (virtio-net, IPv4, DHCP)"
+comment "Disk controller (persistent disk)"
+    depends on ROOTFS_DISK
+
+config DISK_VIRTIO_BLK
+    bool "VirtIO block device (/dev/vda)"
+    depends on ROOTFS_DISK
+    default y if PLATFORM_QEMU
     help
-      Network card of the virtual machine (virtio-net) and IPv4.
-      eth0 gets an address with DHCP at boot (ifup, udhcpc).
-      Also adds the ip and ping commands.
+      The disk of 'make run' on the QEMU platform (-drive if=virtio).
+
+config DISK_VIRTIO_SCSI
+    bool "VirtIO SCSI controller (/dev/sda)"
+    depends on ROOTFS_DISK
+    default y if PLATFORM_VBOX
+    help
+      The "VirtIO SCSI" storage controller of VirtualBox, or
+      -device virtio-scsi-pci in QEMU.
+
+config DISK_AHCI
+    bool "SATA controller (AHCI, /dev/sda)"
+    depends on ROOTFS_DISK
+    help
+      The SATA (AHCI) storage controller. VirtualBox puts a new disk
+      on this controller by default. Turn it on if you want to keep
+      that setting (adds about 45 KB to the kernel).
+
+config NET
+    bool "Network (IPv4, DHCP)"
+    help
+      IPv4 network. eth0 gets an address with DHCP at boot (ifup,
+      udhcpc). Also adds the ip and ping commands. Choose the network
+      card below.
+
+config NET_VIRTIO
+    bool "virtio-net network card"
+    depends on NET
+    default y
+    help
+      The paravirtualized network card of QEMU (-device virtio-net-pci)
+      and VirtualBox ("Paravirtualized Network (virtio-net)").
+
+config NET_E1000
+    bool "Intel PRO/1000 network card (e1000)"
+    depends on NET
+    help
+      The default network card of VirtualBox ("Intel PRO/1000 MT
+      Desktop"), also -device e1000 in QEMU. Adds about 30 KB to the
+      kernel.
 
 config USB
     bool "USB host controllers (xHCI, EHCI)"

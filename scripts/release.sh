@@ -4,6 +4,7 @@
 #   smallham-<version>-<variant>-x86_64.tar.xz   QEMU: kernel, initramfs,
 #                                                (disk image), run.sh
 #   smallham-<version>-<variant>-x86_64.iso      VirtualBox, boots alone
+#   smallham-<version>-<variant>-x86_64.ova      VirtualBox appliance (import)
 #   smallham-<version>-<variant>-x86_64.zip      VirtualBox: ISO + .vmdk disk
 #   smallham-<version>-sources.tar               source code (no kernel)
 #   linux-<kernel version>.tar.xz                kernel source (from kernel.org)
@@ -42,28 +43,9 @@ mkdir -p "$REL" "$STAGE" "$DL"
 # --------------------------------------------------------------------
 # License texts of the programs in the images
 
-lic() {  # <dir> <name> <file>...
-    d=$1/licenses/$2; shift 2
-    mkdir -p "$d"
-    cp "$@" "$d/"
-}
-
-add_licenses() {  # <dir> <ham: yes|no>
-    ksrc=sources/linux-$(mk KERNEL_VERSION)
-    lic "$1" smallham LICENSE
-    lic "$1" linux "$ksrc/COPYING" "$ksrc/LICENSES/preferred/GPL-2.0" \
-        "$ksrc/LICENSES/exceptions/Linux-syscall-note"
-    lic "$1" busybox "$(mk BUSYBOX_SRC)/LICENSE"
-    lic "$1" musl "$(mk MUSL_SRC)/COPYRIGHT"
-    if [ "$2" = yes ]; then
-        lic "$1" direwolf "$(mk DIREWOLF_SRC)/LICENSE"
-        lic "$1" alsa-lib "$(mk ALSA_LIB_SRC)/COPYING"
-        lic "$1" libudev-zero "$(mk LIBUDEVZERO_SRC)/LICENSE"
-        lic "$1" ncurses "$(mk NCURSES_SRC)/COPYING"
-        lic "$1" libax25 "$(mk LIB_AX25_SRC)/COPYING.LIB"
-        lic "$1" ax25-tools "$(mk AX25_TOOLS_SRC)/COPYING"
-        lic "$1" ax25-apps "$(mk AX25_APPS_SRC)/COPYING"
-    fi
+# The list comes from the Makefile (LICENSE_FILES): only the selected programs.
+add_licenses() {  # <dir>
+    make -s licenses LICENSES_DIR="$1/licenses"
 }
 
 readme() {  # <dir> <variant> <text>
@@ -92,8 +74,6 @@ build_variant() {
     make
     base=$OUT/smallham-$name-x86_64
     pkg=smallham-$VERSION-$name-x86_64
-    ham=no
-    case $name in ham-*) ham=yes ;; esac
     disk=$(mk CONFIG_ROOTFS_DISK)
 
     case $kind in
@@ -106,7 +86,7 @@ build_variant() {
             cp "$base-disk.img" "$base-rootfs.squashfs" "$dir/"
         fi
         mv "$base-run.sh" "$dir/run.sh"
-        add_licenses "$dir" $ham
+        add_licenses "$dir"
         if [ "$disk" = y ]; then
             note="The system is on the disk image (disk.img): your changes are kept."
         else
@@ -123,15 +103,23 @@ $note"
         cp "$base.iso" "$REL/$pkg.iso"
         ;;
     zip)
-        make iso
+        make ova
+        cp "$base.ova" "$REL/$pkg.ova"
         dir=$STAGE/$pkg
         mkdir -p "$dir"
         cp "$base.iso" "$base-disk.vmdk" "$base-rootfs.squashfs" "$dir/"
-        add_licenses "$dir" $ham
-        readme "$dir" "$name" "VirtualBox: boot from the .iso and attach the .vmdk (the system
-with your changes) to a \"VirtIO SCSI\" storage controller.
-Use the \"virtio-net\" network adapter. Step by step: README.md,
-\"Run with VirtualBox\"."
+        add_licenses "$dir"
+        readme "$dir" "$name" "VirtualBox, the easy way: import this file (a separate download
+on the release page) with File > Import Appliance:
+
+    $pkg.ova
+
+It sets up everything.
+
+By hand: boot from the .iso and attach the .vmdk (the system with your
+changes) to a \"VirtIO SCSI\" storage controller. A new VM puts the disk
+on the SATA controller: remove it there first. Use the \"virtio-net\"
+network adapter. Step by step: README.md, \"Run with VirtualBox\"."
         (cd "$STAGE" && zip -qrX "$REL/$pkg.zip" "$pkg")
         ;;
     esac
@@ -171,8 +159,7 @@ gitpkg() {  # <name> <source dir> <commit> [<pathspec>...]
     git -C "$dir" archive --prefix="$name/" "$commit" -- "$@" |
         gzip -9n > "$src/$name-$(echo "$commit" | cut -c1-12).tar.gz"
 }
-# Without doc/: 20 MB of PDF manuals, not needed to build the program.
-gitpkg direwolf "$(mk DIREWOLF_SRC)" "$(mk DIREWOLF_COMMIT)" . ':(exclude)doc'
+gitpkg direwolf "$(mk DIREWOLF_SRC)" "$(mk DIREWOLF_COMMIT)"
 gitpkg libax25 "$(mk LIB_AX25_SRC)" "$(mk LIB_AX25_COMMIT)"
 gitpkg ax25-tools "$(mk AX25_TOOLS_SRC)" "$(mk AX25_TOOLS_COMMIT)"
 gitpkg ax25-apps "$(mk AX25_APPS_SRC)" "$(mk AX25_APPS_COMMIT)"
@@ -209,7 +196,6 @@ cp "$DL/$ktar" "$REL/"
     echo "everything. The git sources were fetched from:"
     echo
     echo "- direwolf: $(mk DIREWOLF_REPO) $(mk DIREWOLF_COMMIT)"
-    echo "  (without the doc/ folder of PDF manuals; they are in the repository)"
     echo "- libax25: $(mk LIB_AX25_REPO) $(mk LIB_AX25_COMMIT)"
     echo "- ax25-tools: $(mk AX25_TOOLS_REPO) $(mk AX25_TOOLS_COMMIT)"
     echo "- ax25-apps: $(mk AX25_APPS_REPO) $(mk AX25_APPS_COMMIT)"
@@ -232,7 +218,7 @@ tar --owner=0 --group=0 --numeric-owner -C "$STAGE" -cf "$REL/$srcname.tar" "$sr
 
 # --------------------------------------------------------------------
 
-(cd "$REL" && sha256sum -- *.tar.xz *.iso *.zip *.tar > SHA256SUMS)
+(cd "$REL" && sha256sum -- *.tar.xz *.iso *.ova *.zip *.tar > SHA256SUMS)
 echo
 echo "Release files in $REL:"
 ls -l "$REL"
