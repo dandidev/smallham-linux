@@ -167,6 +167,12 @@ ifeq ($(CONFIG_ACPI_POWEROFF),y)
 KERNEL_FRAGMENTS += acpi
 endif
 
+ifeq ($(CONFIG_ACPI_POWER_BUTTON),y)
+KERNEL_FRAGMENTS += acpi-button
+BUSYBOX_FRAGMENTS += acpid
+ROOTFS_OVERLAYS += acpid
+endif
+
 ifeq ($(CONFIG_USB),y)
 KERNEL_FRAGMENTS += usb
 BUSYBOX_FRAGMENTS += usb

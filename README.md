@@ -99,7 +99,7 @@ Memory (RAM) for the virtual machine:
 
 | Configuration | Smallest RAM that boots | Recommended RAM |
 |---|---|---|
-| Base image | 16 MB | 16 MB |
+| Base image | 16 MB (VirtualBox: 17 MB, because of ACPI) | 16 MB (VirtualBox: 17 MB) |
 | Ham radio setup | 20 MB (24 MB to run Dire Wolf) | 32 MB |
 
 ## System size
@@ -111,7 +111,7 @@ Measured sizes of the built system:
 | initramfs | 113 KB (the whole system) | 11 KB (only the disk mounter) |
 | Root filesystem | inside the initramfs | 1.0 MB squashfs in the disk image (192 KB without the ham programs) |
 | **Total on disk** | **926 KB** | **2.6 MB** (the disk image itself is 8 MB with free space) |
-| VirtualBox ISO | 1.4 MB | 2.2 MB (+ 1.2 MB `.vmdk` disk) |
+| VirtualBox ISO | 1.7 MB | 2.5 MB (+ 1.2 MB `.vmdk` disk) |
 | RAM used after boot | 1.5 MB | 5.2 MB (8.8 MB with Dire Wolf running) |
 
 The ham programs in the root filesystem (xz compressed): Dire Wolf 490 KB,
@@ -166,7 +166,14 @@ the profile later.
     - In the running system the two layers are at `/mnt/ro` (squashfs) and `/mnt/rw` (ext2, your changes in `/mnt/rw/rw_root`). At `reboot` and `poweroff`, `/etc/init.d/rcK` stops the programs and remounts `/mnt/rw` read-only, so the ext2 partition is clean at the next boot.
     - `fs_init` finds the disk by its content (a squashfs and an ext2 partition), on any controller the kernel has a driver for, and waits up to 10 seconds for slow devices (`fs_wait=<seconds>` on the kernel command line). If no disk is found, it lists the block devices and the disk drivers of the kernel. `squashfs_dev=/dev/vda1 rw_dev=/dev/vda2` on the kernel command line selects the partitions by name.
 - **Console**: VGA screen and PS/2 keyboard, or serial port (`ttyS0`, QEMU runs with `-nographic`)
-- **ACPI**: `poweroff` switches off the virtual machine (without it use `reboot`)
+- **Power off (ACPI)**: off by default (minimal); recommended for VirtualBox, where `base_vbox_defconfig` and `ham_vbox_defconfig` turn both options on
+  - `ACPI`: `poweroff` switches off the virtual machine (without it use `reboot`). It also turns on PCI, which the ACPI tables need: the base image then needs 17 MB of RAM instead of 16
+  - `Shut down from the host`: the power button of the VM shuts the system down cleanly ("ACPI Shutdown" in VirtualBox, `system_powerdown` in the QEMU monitor). Adds BusyBox `acpid`, which runs `poweroff`
+
+The defaults are minimal: a platform turns on only what is needed to boot and
+reach the network (one disk driver, one network card). Options that are useful
+on a platform are shown as *Recommended for &lt;platform&gt;* in menuconfig, and
+the help of the platform (`?`) lists them.
 
 #### Kernel drivers
 - Disk controller (only with `Persistent disk`), the platform turns on one:
@@ -372,9 +379,14 @@ The disk and network drivers of your configuration decide the controller and
 the network card of the appliance (VirtIO SCSI or SATA, virtio-net or
 Intel PRO/1000).
 
+To shut the system down, type `poweroff`, or choose **Machine > ACPI
+Shutdown** in the VirtualBox window (from the command line:
+`VBoxManage controlvm smallham acpipowerbutton`). Both need the Power off
+(ACPI) options, which the VirtualBox configurations turn on.
+
 #### Set up a VM by hand
 Copy the `.iso` and the `.vmdk` to any computer with VirtualBox and set up a VM:
-- Type: Linux, 64-bit. Memory: 16 MB for the base image, 32 MB for the ham radio setup
+- Type: Linux, 64-bit. Memory: 17 MB for the base image, 32 MB for the ham radio setup
 - Optical drive (IDE): the `.iso` file, boot from it
 - Persistent disk: a **VirtIO SCSI** storage controller with the `.vmdk` file
 - Network: adapter type **Paravirtualized Network (virtio-net)**
