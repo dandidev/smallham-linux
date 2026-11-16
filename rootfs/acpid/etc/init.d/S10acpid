@@ -1,0 +1,5 @@
+#!/bin/sh
+# Listen to the power button of the VM ("ACPI Shutdown" in VirtualBox,
+# system_powerdown in QEMU): acpid runs /etc/acpi/PWRF/00000080.
+
+acpid -l /dev/null && echo "acpid started (power button shuts down)"

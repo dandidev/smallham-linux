@@ -1,3 +1,7 @@
 # Ham radio station for VirtualBox: ISO + .vmdk disk (make iso).
 CONFIG_PROFILE_HAM=y
 CONFIG_PLATFORM_VBOX=y
+# Recommended for VirtualBox (see the help of the platform): 'poweroff'
+# and "ACPI Shutdown" in the VirtualBox menu switch the VM off.
+CONFIG_ACPI_POWEROFF=y
+CONFIG_ACPI_POWER_BUTTON=y

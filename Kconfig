@@ -9,6 +9,12 @@ mainmenu "SmallHam Configuration"
 # A profile turns on a group of options with 'imply': the options are on by
 # default, but each of them can still be turned off.
 #
+# Defaults are minimal. A profile says what the system is for (its tools),
+# the platform only turns on what is needed to boot and reach the network:
+# one disk driver and one network card. Options that are useful on a
+# platform are not turned on: menuconfig shows them as "Recommended for
+# <platform>", and the help of the platform lists them.
+#
 
 menu "Profile"
 
@@ -94,6 +100,12 @@ config PLATFORM_QEMU
       Boot with 'make run'. The persistent disk is a virtio-blk
       device (/dev/vda).
 
+      Turned on (needed): VirtIO block disk, virtio-net network card
+      (with Network).
+      Recommended: nothing. Leave QEMU with 'reboot'.
+      Optional: Power off (ACPI), for 'poweroff' and the
+      'system_powerdown' command of the QEMU monitor.
+
 config PLATFORM_VBOX
     bool "VirtualBox (ISO)"
     help
@@ -102,6 +114,13 @@ config PLATFORM_VBOX
       controller, and use the "virtio-net" network adapter (or choose
       other drivers in "Kernel drivers"). 'make run' boots the same
       setup in QEMU.
+
+      Turned on (needed): VirtIO SCSI disk, virtio-net network card
+      (with Network).
+      Recommended: Power off (ACPI), both options: 'poweroff' and
+      "ACPI Shutdown" in the VirtualBox menu switch the VM off.
+      Optional: SATA (AHCI) disk and Intel PRO/1000 network card, if
+      you keep the hardware of a new VirtualBox VM.
 
 endchoice
 
@@ -147,6 +166,11 @@ config CONSOLE_SERIAL
 
 endchoice
 
+menu "Power off (ACPI)"
+
+comment "Recommended for VirtualBox: both options below"
+    depends on PLATFORM_VBOX
+
 config ACPI_POWEROFF
     bool "ACPI ('poweroff' switches off the VM)"
     help
@@ -155,6 +179,18 @@ config ACPI_POWEROFF
 
       Also turns on PCI: the ACPI tables of the VM use it. The base
       image (no PCI devices) then needs 17 MB of RAM instead of 16.
+
+config ACPI_POWER_BUTTON
+    bool "Shut down from the host (power button, acpid)"
+    depends on ACPI_POWEROFF
+    help
+      The power button of the VM shuts the system down cleanly:
+      "ACPI Shutdown" in VirtualBox (also 'VBoxManage controlvm <vm>
+      acpipowerbutton'), or 'system_powerdown' in the QEMU monitor.
+      Adds the ACPI button and input event drivers to the kernel and
+      BusyBox acpid, which runs 'poweroff' when the button is pressed.
+
+endmenu
 
 endmenu
 

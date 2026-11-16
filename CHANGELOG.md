@@ -11,6 +11,12 @@
 - Fix: with the ACPI option `poweroff` really switches off the VM. The
   option also turns on PCI now; without it the kernel could not load the
   ACPI tables and only halted.
+- New menu "Power off (ACPI)" with a second option: shut down from the host
+  with the power button of the VM ("ACPI Shutdown" in VirtualBox,
+  `system_powerdown` in QEMU), with BusyBox `acpid`. The defaults stay
+  minimal; menuconfig and the help of the platform show what is recommended
+  for VirtualBox. The VirtualBox configurations turn both options on
+  (base image: 17 MB of RAM instead of 16).
 
 ## v0.7 – VirtualBox appliance and more drivers
 

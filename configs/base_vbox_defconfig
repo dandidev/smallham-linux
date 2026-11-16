@@ -1,2 +1,6 @@
 # Base image for VirtualBox: boots from the ISO (make iso).
 CONFIG_PLATFORM_VBOX=y
+# Recommended for VirtualBox (see the help of the platform): 'poweroff'
+# and "ACPI Shutdown" in the VirtualBox menu switch the VM off.
+CONFIG_ACPI_POWEROFF=y
+CONFIG_ACPI_POWER_BUTTON=y
