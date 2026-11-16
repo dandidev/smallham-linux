@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.7 – VirtualBox appliance and more drivers
 
 - More drivers can be selected in "Kernel drivers": disk controllers
   (VirtIO block, VirtIO SCSI, SATA/AHCI) and network cards (virtio-net,
