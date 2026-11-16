@@ -1,0 +1,7 @@
+Homa transport protocol (homa.ko and the test programs)
+https://github.com/PlatformLab/HomaModule
+
+The source files carry "Copyright (c) <years> Homa Developers" and
+"SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0+": you may use them
+under either license. Both license texts are in this folder (GPL-2.0,
+BSD-2-Clause). The upstream repository has no separate license file.

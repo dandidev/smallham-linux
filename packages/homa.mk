@@ -14,7 +14,8 @@ HOMA_PATCHED := $(STAMP)/homa.patched
 HOMA_PATCH := patches/homa-small-kernel.patch
 
 # C++ programs: musl-gcc has no C++ library, so they are linked statically
-# with the host g++ (glibc).
+# with the host g++ (glibc). Because of the static glibc (LGPL) they are for
+# testing only, not for release files.
 HOMA_UTILS := homa_test server cp_node
 
 #---------------------------------------------------------------------
@@ -24,6 +25,12 @@ PKG_DIRS += HOMA|$(HOMA_PREFIX)/lib/modules:/lib/modules
 
 PKG_FEATURES += HOMA_UTILS|homa-utils
 PKG_BINS += $(foreach b,$(HOMA_UTILS),HOMA_UTILS|$(HOMA_PREFIX)/usr/bin/$(b))
+
+# Homa has no license file, only SPDX headers (BSD-2-Clause OR GPL-2.0+):
+# homa/NOTICE and the two license texts from the kernel tree.
+PKG_LICENSES += HOMA|homa|homa/NOTICE
+PKG_LICENSES += HOMA|homa|$(KERNEL_SRC)/LICENSES/preferred/GPL-2.0
+PKG_LICENSES += HOMA|homa|$(KERNEL_SRC)/LICENSES/preferred/BSD-2-Clause
 
 #---------------------------------------------------------------------
 
