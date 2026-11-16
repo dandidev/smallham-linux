@@ -110,7 +110,7 @@ Measured sizes of the built system:
 | Kernel (`bzImage`) | 813 KB | 1.6 MB |
 | initramfs | 113 KB (the whole system) | 11 KB (only the disk mounter) |
 | Root filesystem | inside the initramfs | 1.0 MB squashfs in the disk image (192 KB without the ham programs) |
-| **Total on disk** | **926 KB** | **2.6 MB** (the disk image itself is 8 MB with free space) |
+| **Total on disk** | **926 KB** | **2.6 MB** (the disk image itself is 8 MB with free space; 1 MB of it is writable by default) |
 | VirtualBox ISO | 1.7 MB | 2.5 MB (+ 1.2 MB `.vmdk` disk) |
 | RAM used after boot | 1.5 MB | 5.2 MB (8.8 MB with Dire Wolf running) |
 
@@ -162,9 +162,11 @@ the profile later.
 - **Target platform**: `QEMU` (disk: virtio-blk, `/dev/vda`) or `VirtualBox (ISO)` (disk: VirtIO SCSI, `/dev/sda`). Other disk controllers and network cards: see *Kernel drivers*
 - **Root filesystem**:
   - `initramfs only`: the whole system is in RAM, changes are lost on reboot
-  - `Persistent disk`: a read-only squashfs plus a writable ext2 partition, joined with overlayfs (`fs_init`); changes are kept
+  - `Persistent disk`: a read-only squashfs plus a writable ext2 (or ext4) partition, joined with overlayfs (`fs_init`); changes are kept
     - In the running system the two layers are at `/mnt/ro` (squashfs) and `/mnt/rw` (ext2, your changes in `/mnt/rw/rw_root`). At `reboot` and `poweroff`, `/etc/init.d/rcK` stops the programs and remounts `/mnt/rw` read-only, so the ext2 partition is clean at the next boot.
     - `fs_init` finds the disk by its content (a squashfs and an ext2 partition), on any controller the kernel has a driver for, and waits up to 10 seconds for slow devices (`fs_wait=<seconds>` on the kernel command line). If no disk is found, it lists the block devices and the disk drivers of the kernel. `squashfs_dev=/dev/vda1 rw_dev=/dev/vda2` on the kernel command line selects the partitions by name.
+- **Writable partition filesystem**: `ext2` (default, the smallest kernel) or `ext4` (journal: after a hard power off the kernel repairs the filesystem at the next boot; recommended for real hardware and USB sticks; about 145 KB bigger kernel, needs at least 2 MB writable partition). The ext4 kernel also mounts ext2 disks
+- **Writable partition size (MB)**: the space for your files and changes on the persistent disk, 1 MB by default (4 MB with ext4, of which about 1 MB is the journal)
 - **Console**: VGA screen and PS/2 keyboard, or serial port (`ttyS0`, QEMU runs with `-nographic`)
 - **Power off (ACPI)**: off by default (minimal); recommended for VirtualBox, where `base_vbox_defconfig` and `ham_vbox_defconfig` turn both options on
   - `ACPI`: `poweroff` switches off the virtual machine (without it use `reboot`). It also turns on PCI, which the ACPI tables need: the base image then needs 17 MB of RAM instead of 16
@@ -256,10 +258,13 @@ Partitions of the disk image:
 | Partition | Content | Used as |
 |---|---|---|
 | 1 (`vda1`) | squashfs (xz), read-only root | lower layer of the overlay |
-| 2 (`vda2`) | ext2, writable | upper layer of the overlay (your changes) |
+| 2 (`vda2`) | ext2 (or ext4), writable | upper layer of the overlay (your changes) |
 
 Note: `make` builds the disk image again, and this deletes your changes on the
-writable partition. You can change the sizes, e.g. `make DISK_SIZE_MB=16 SQUASHFS_SIZE_MB=8`.
+writable partition. The writable partition is 1 MB by default: make it bigger
+with `Writable partition size (MB)` in `make menuconfig` (System). The squashfs
+partition is 6 MB, e.g. `make SQUASHFS_SIZE_MB=8` changes it. The disk image is
+1 MB (partition table) + the two partitions.
 
 Make targets:
 

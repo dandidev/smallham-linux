@@ -2,17 +2,17 @@
  * fs_init - minimal initramfs /init
  *
  * Finds the persistent disk, mounts its read-only squashfs root and its
- * writable ext2 partition, combines them with overlayfs and switch_root's
- * into /bin/init.
+ * writable ext2 (or ext4) partition, combines them with overlayfs and
+ * switch_root's into /bin/init.
  *
  * The partitions are found by their content: the first partition with a
- * squashfs, and an ext2 partition on the same disk. So the disk works on
+ * squashfs, and an ext2/ext4 partition on the same disk. So the disk works on
  * any controller the kernel has a driver for (/dev/vda, /dev/sda, ...).
  * Slow devices (e.g. USB) get a few seconds to appear.
  *
  * Optional kernel cmdline parameters:
  *   squashfs_dev=<dev>   read-only lower layer (e.g. /dev/vda1)
- *   rw_dev=<dev>         writable upper layer, ext2 (e.g. /dev/vda2)
+ *   rw_dev=<dev>         writable upper layer, ext2/ext4 (e.g. /dev/vda2)
  *   fs_wait=<seconds>    how long to wait for the disk (default 10)
  *
  * DISK_DRIVERS (set by the Makefile) lists the disk drivers in the kernel,
@@ -31,6 +31,12 @@
 
 #ifndef DISK_DRIVERS
 #define DISK_DRIVERS "unknown"
+#endif
+
+/* Filesystem of the writable partition (set by the Makefile): ext2 or
+ * ext4. Both have the same superblock magic, so probe() finds either. */
+#ifndef RW_FSTYPE
+#define RW_FSTYPE "ext2"
 #endif
 
 #define NEW_ROOT "/overlay_root"
@@ -215,7 +221,7 @@ static void disk_not_found(const char *what)
     fprintf(stderr, "\n");
     for (int i = 0; i < nparts; i++) {
         const char *t = parts[i].type == FS_SQUASHFS ? "squashfs" :
-                        parts[i].type == FS_EXT2 ? "ext2" : "-";
+                        parts[i].type == FS_EXT2 ? "ext2/ext4" : "-";
         fprintf(stderr, "fs_init:   /dev/%-10s %s\n", parts[i].name, t);
     }
     fprintf(stderr,
@@ -259,7 +265,7 @@ static void wait_for_disk(char *ro, char *rw, size_t size, int have_cmdline)
         snprintf(msg, sizeof(msg), "%s or %s (from the kernel cmdline) not found", ro, rw);
         disk_not_found(msg);
     }
-    disk_not_found("no disk with a squashfs and an ext2 partition found");
+    disk_not_found("no disk with a squashfs and an ext2/ext4 partition found");
 }
 
 static void do_mount(const char *src, const char *dst, const char *type,
@@ -298,7 +304,7 @@ int main(void)
      * overlay options with the right names after the move below. */
     mkdir("/mnt", 0755);
     do_mount(ro_dev, "/mnt/ro", "squashfs", MS_RDONLY, NULL);
-    do_mount(rw_dev, "/mnt/rw", "ext2", 0, NULL);
+    do_mount(rw_dev, "/mnt/rw", RW_FSTYPE, 0, NULL);
 
     mkdir("/mnt/rw/rw_root", 0755);
     mkdir("/mnt/rw/work", 0755);
