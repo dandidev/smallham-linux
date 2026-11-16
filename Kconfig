@@ -76,6 +76,11 @@ config PROFILE_HOMA
       a system log, on a persistent disk (your files are kept), with a
       serial console. This is the same as 'make homa_defconfig'.
 
+      For functional tests, development and learning: the module, its
+      API and the test programs work. It is not for performance
+      measurements: times measured in a virtual machine show the
+      virtualization, not Homa on real hardware.
+
 endchoice
 
 endmenu

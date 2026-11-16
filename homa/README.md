@@ -4,6 +4,10 @@
 transport protocol. This directory starts two SmallHam virtual machines on
 one network, so they can talk to each other with Homa.
 
+They are for functional tests, development and learning, not for
+performance measurements: the times show the virtualization, not Homa.
+See "Homa transport protocol" in the [main README](../README.md).
+
 The image is the normal Homa image: there is no network setting in it, the
 VMs ask for their IP address with DHCP on `eth0`. The environment is on your
 computer:

@@ -555,6 +555,19 @@ without IPsec, SMP and xxhash, which this small kernel does not have.
 `make homa_defconfig` (profile `Homa test system`) builds it on a persistent
 disk, so the files you add are kept. It runs with 24 MB of RAM.
 
+**What it is for:** functional tests, Homa development and learning. The
+module loads, its API and the test programs work, and small VMs can talk to
+each other with Homa. It is **not** for performance measurements: in a virtual
+machine the times show the virtualization, not Homa:
+- the network is virtio-net through a bridge on the host, which adds more
+  delay than Homa itself has on a real network
+- one virtual CPU, no SMP (the patch removes the RPS part of Homa)
+- the kernel clock is coarse (`notsc` and no HPET: refined-jiffies)
+- the host shares its CPUs between the VMs and its other work
+
+Real measurements need real hardware: a driver for its network card, SMP
+and an exact clock.
+
 Homa needs two machines. [`homa/`](homa/README.md) starts two virtual machines
 on the `virbr0` bridge (see "Bridged network (host setup)"), where they get
 their addresses with DHCP. The settings are in `homa/homa.env`:
