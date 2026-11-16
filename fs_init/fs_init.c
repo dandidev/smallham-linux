@@ -294,14 +294,29 @@ int main(void)
     }
     wait_for_disk(ro_dev, rw_dev, sizeof(ro_dev), from_cmdline);
 
-    do_mount(ro_dev, "/ro_root", "squashfs", MS_RDONLY, NULL);
-    do_mount(rw_dev, "/mnt_overlay", "ext2", 0, NULL);
+    /* The same paths as in the new root, so /proc/mounts shows the
+     * overlay options with the right names after the move below. */
+    mkdir("/mnt", 0755);
+    do_mount(ro_dev, "/mnt/ro", "squashfs", MS_RDONLY, NULL);
+    do_mount(rw_dev, "/mnt/rw", "ext2", 0, NULL);
 
-    mkdir("/mnt_overlay/rw_root", 0755);
-    mkdir("/mnt_overlay/work", 0755);
+    mkdir("/mnt/rw/rw_root", 0755);
+    mkdir("/mnt/rw/work", 0755);
     do_mount("overlay", NEW_ROOT, "overlay", 0,
-             "lowerdir=/ro_root,upperdir=/mnt_overlay/rw_root,workdir=/mnt_overlay/work");
+             "lowerdir=/mnt/ro,upperdir=/mnt/rw/rw_root,workdir=/mnt/rw/work");
     printf("fs_init: overlay root ready (%s + %s)\n", ro_dev, rw_dev);
+
+    /* Hand over the two layers to the new root (/mnt/ro, /mnt/rw). Left in
+     * the initramfs they would be out of reach after switch_root, and the
+     * ext2 partition could not be remounted read-only at shutdown: it
+     * would never be marked clean. */
+    mkdir(NEW_ROOT "/mnt", 0755);
+    mkdir(NEW_ROOT "/mnt/ro", 0755);
+    mkdir(NEW_ROOT "/mnt/rw", 0755);
+    if (mount("/mnt/ro", NEW_ROOT "/mnt/ro", NULL, MS_MOVE, NULL) != 0)
+        fatal("moving the squashfs to /mnt/ro failed");
+    if (mount("/mnt/rw", NEW_ROOT "/mnt/rw", NULL, MS_MOVE, NULL) != 0)
+        fatal("moving the ext2 partition to /mnt/rw failed");
 
     /* Hand over /dev to the new root; /proc is remounted by inittab. */
     mkdir(NEW_ROOT "/dev", 0755);

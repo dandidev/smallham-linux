@@ -1,0 +1,19 @@
+#!/bin/sh
+# System shutdown (inittab ::shutdown), before reboot or poweroff.
+# BusyBox init runs this before it stops the processes, so stop them here:
+# a file open for writing would keep the disk from going read-only.
+
+kill -TERM -1
+sleep 1
+kill -KILL -1
+
+# Persistent disk: the writable ext2 partition under the overlay root.
+# Read-only marks it clean; the overlay keeps it mounted, so 'umount'
+# alone would not.
+while read -r dev dir rest; do
+    if [ "$dir" = /mnt/rw ]; then
+        mount -o remount,ro "$dev" /mnt/rw
+    fi
+done < /proc/mounts
+
+umount -a -r

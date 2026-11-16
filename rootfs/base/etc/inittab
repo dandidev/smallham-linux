@@ -5,4 +5,4 @@
 # The console device (tty1 or ttyS0) is filled in by 'make rootfs'
 @CONSOLE@::respawn:-/bin/sh
 ::ctrlaltdel:/bin/reboot -f
-::shutdown:/bin/umount -a -r
+::shutdown:/etc/init.d/rcK
