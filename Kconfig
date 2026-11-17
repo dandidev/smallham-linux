@@ -70,11 +70,16 @@ config PROFILE_HOMA
     imply BB_SYSLOG
     imply HOMA
     imply HOMA_UTILS
+    imply HOMA_CLOCK
     help
       A system for trying the Homa transport protocol: kernel 6.17 with
       the Homa module, its test programs, network, common tools, vi and
       a system log, on a persistent disk (your files are kept), with a
       serial console. This is the same as 'make homa_defconfig'.
+
+      Also turns on the accurate clock that Homa needs, and gives the
+      disk an 8 MB ext4 writable partition (test results, logs; the
+      journal keeps it consistent after a hard stop of the VM).
 
       For functional tests, development and learning: the module, its
       API and the test programs work. It is not for performance
@@ -195,6 +200,7 @@ endchoice
 choice
     prompt "Writable partition filesystem"
     depends on ROOTFS_DISK
+    default RW_FS_EXT4 if PROFILE_HOMA
     default RW_FS_EXT2
     help
       The filesystem of the writable partition (your files and changes).
@@ -227,6 +233,7 @@ config RW_SIZE_MB
     depends on ROOTFS_DISK
     range 2 4096 if RW_FS_EXT4
     range 1 4096
+    default 8 if PROFILE_HOMA
     default 4 if RW_FS_EXT4
     default 1
     help
@@ -460,6 +467,8 @@ config DIREWOLF
           Installs an example /etc/direwolf.conf (1200 baud, first USB
           sound card). Change MYCALL N0CALL to your callsign.
 
+menu "Homa (experimental)"
+
 config HOMA
     bool "Homa transport protocol (experimental)"
     depends on NET
@@ -484,6 +493,32 @@ config HOMA
           The test and benchmark programs of Homa, statically linked
           (C++, so they are much larger than the other programs).
           Run them between two virtual machines, see the README.
+
+comment "Recommended for Homa: Accurate clock"
+    depends on HOMA
+
+config HOMA_CLOCK
+    bool "Accurate clock (TSC, high resolution timers)"
+    depends on HOMA
+    help
+      Homa measures time with the CPU cycle counter (TSC) and converts
+      it with the TSC frequency: grant timing, its queuing discipline,
+      buffer reuse. Its timer thread wakes up every 1 ms.
+
+      Removes 'notsc' from the kernel command line, so the kernel uses
+      the TSC as its clock, and adds high resolution timers, so the
+      1 ms timer is not rounded up to the 4 ms kernel tick. About 4 KB.
+
+config HOMA_KVM
+    bool "KVM guest clock (kvmclock)"
+    depends on HOMA
+    help
+      Paravirtualized clock and other optimizations for a VM that runs
+      with KVM (homa/start-vm.sh uses KVM when /dev/kvm is usable).
+      The host gives the guest a stable clock and the TSC frequency.
+      Optional: without KVM the accurate clock option is enough.
+
+endmenu
 
 config ALSA_UTILS_APLAY
     bool "aplay"

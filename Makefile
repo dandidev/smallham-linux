@@ -99,7 +99,9 @@ OVA := $(OUT)/$(OUT_NAME).ova
 KERNEL_FRAGMENTS := base
 BUSYBOX_FRAGMENTS := base
 ROOTFS_OVERLAYS := base
-KERNEL_CMDLINE := notsc
+# notsc: the kernel does not use the TSC as its clock. The accurate clock
+# option of Homa needs it.
+KERNEL_CMDLINE := $(if $(CONFIG_HOMA_CLOCK),,notsc)
 QEMU_ARGS :=
 
 # Disk controllers in the kernel. 'make run' attaches the disk to the
@@ -210,6 +212,14 @@ ROOTFS_OVERLAYS += homa
 # The Homa kernel is SMP (up to 4 CPUs); homa/homa.env sets the CPUs of
 # the two test VMs.
 QEMU_ARGS += -smp 2
+endif
+
+ifeq ($(CONFIG_HOMA_CLOCK),y)
+KERNEL_FRAGMENTS += homa-clock
+endif
+
+ifeq ($(CONFIG_HOMA_KVM),y)
+KERNEL_FRAGMENTS += homa-kvm
 endif
 
 ifeq ($(CONFIG_BB_TOOLS),y)

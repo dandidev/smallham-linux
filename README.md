@@ -558,18 +558,27 @@ Homa option adds what Homa uses from the kernel (IPv6, SMP with RPS for up to
 disk, so the files you add are kept. It needs 26 MB of RAM (with 24 MB the
 module loads, but too little is left); the test VMs use 30 MB.
 
+The options are in `make menuconfig`, Extras > Homa:
+- `Homa transport protocol` and `Homa test programs` (`homa_test`, `server`, `cp_node`)
+- `Accurate clock` (recommended, the profile turns it on): no `notsc` on the
+  kernel command line and high resolution timers. Homa measures time with the
+  TSC and its timer thread runs every 1 ms
+- `KVM guest clock` (optional): kvmclock, when the VMs run with KVM
+
+The profile also gives the disk an 8 MB ext4 writable partition (System), for
+test results and logs.
+
 **What it is for:** functional tests, Homa development and learning. The
 module loads, its API and the test programs work, and small VMs can talk to
 each other with Homa. It is **not** for performance measurements: in a virtual
 machine the times show the virtualization, not Homa:
 - the network is virtio-net through a bridge on the host, which adds more
   delay than Homa itself has on a real network
-- virtual CPUs share the CPUs of the host
-- the kernel clock is coarse (`notsc` and no HPET: refined-jiffies)
+- the clock of a VM is less exact than real hardware (the accurate clock
+  and kvmclock options in menuconfig, Extras > Homa, make it better)
 - the host shares its CPUs between the VMs and its other work
 
-Real measurements need real hardware: a driver for its network card, SMP
-and an exact clock.
+Real measurements need real hardware with a driver for its network card.
 
 Homa needs two machines. [`homa/`](homa/README.md) starts two virtual machines
 on the `virbr0` bridge (see "Bridged network (host setup)"), where they get

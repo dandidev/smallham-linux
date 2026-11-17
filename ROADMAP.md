@@ -33,8 +33,6 @@ performance measurements. Open work:
   v0.7 the two VMs were only tested on a QEMU socket network.
 - A short guide for learning: what `homa_test`, `cp_node` and
   `/proc/net/homa_metrics` show, with a few exercises.
-- Kernel clock: the VMs use refined-jiffies (`notsc`, no HPET), 4 ms
-  resolution. Try kvmclock (`KVM_GUEST`, `PARAVIRT`) or remove `notsc`.
 - More than two VMs (e.g. a small `cp_node` cluster) for functional tests.
 - The test programs are linked statically with glibc (C++), so they cannot go
   into release files. Build them with musl and a C++ library for musl.
