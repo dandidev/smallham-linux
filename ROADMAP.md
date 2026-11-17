@@ -38,5 +38,5 @@ performance measurements. Open work:
 - More than two VMs (e.g. a small `cp_node` cluster) for functional tests.
 - The test programs are linked statically with glibc (C++), so they cannot go
   into release files. Build them with musl and a C++ library for musl.
-- Later, real hardware: a driver for the network card, SMP and an exact
+- Later, real hardware: a driver for the network card and an exact
   clock; boot with PXE or from USB.

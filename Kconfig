@@ -464,12 +464,18 @@ config HOMA
     bool "Homa transport protocol (experimental)"
     depends on NET
     depends on KERNEL_6_17
+    # ACPI lists the CPUs of the VM (the MP table of QEMU has only one)
+    select ACPI_POWEROFF
     help
       Homa, a low latency RPC transport protocol for data centers
       (https://github.com/PlatformLab/HomaModule). It is not in the
       mainline kernel yet: it is built as a loadable module (homa.ko)
-      and loaded at boot. Also adds IPv6, which Homa needs.
-      Needs the 6.17 kernel.
+      and loaded at boot. Needs the 6.17 kernel.
+
+      Adds what Homa uses from the kernel, so it builds without
+      changes: IPv6, SMP with RPS (up to 4 CPUs), IPsec (XFRM) and
+      xxhash, and ACPI (Power off), which lists the CPUs of the VM.
+      About 330 KB more kernel than without them.
 
     config HOMA_UTILS
         bool "Homa test programs (homa_test, cp_node, ...)"

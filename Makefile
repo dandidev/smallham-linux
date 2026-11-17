@@ -207,6 +207,9 @@ ifeq ($(CONFIG_HOMA),y)
 KERNEL_FRAGMENTS += homa
 BUSYBOX_FRAGMENTS += modules
 ROOTFS_OVERLAYS += homa
+# The Homa kernel is SMP (up to 4 CPUs); homa/homa.env sets the CPUs of
+# the two test VMs.
+QEMU_ARGS += -smp 2
 endif
 
 ifeq ($(CONFIG_BB_TOOLS),y)

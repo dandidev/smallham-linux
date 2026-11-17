@@ -549,11 +549,14 @@ ip addr show ax0
 transport protocol for data centers. It is not in the mainline kernel yet, so
 it needs kernel 6.17 (`Kernel version` in menuconfig) and it is built as a
 loadable module (`/lib/modules/homa.ko`). It is loaded at boot
-(`/etc/init.d/S30homa`). `patches/homa-small-kernel.patch` lets it build
-without IPsec, SMP and xxhash, which this small kernel does not have.
+(`/etc/init.d/S30homa`). It is built from the unchanged Homa source: the
+Homa option adds what Homa uses from the kernel (IPv6, SMP with RPS for up to
+4 CPUs, IPsec/XFRM, xxhash, and ACPI, which lists the CPUs of the VM; about
+330 KB). `make run` and the test VMs start with 2 CPUs.
 
 `make homa_defconfig` (profile `Homa test system`) builds it on a persistent
-disk, so the files you add are kept. It runs with 24 MB of RAM.
+disk, so the files you add are kept. It needs 26 MB of RAM (with 24 MB the
+module loads, but too little is left); the test VMs use 30 MB.
 
 **What it is for:** functional tests, Homa development and learning. The
 module loads, its API and the test programs work, and small VMs can talk to
@@ -561,7 +564,7 @@ each other with Homa. It is **not** for performance measurements: in a virtual
 machine the times show the virtualization, not Homa:
 - the network is virtio-net through a bridge on the host, which adds more
   delay than Homa itself has on a real network
-- one virtual CPU, no SMP (the patch removes the RPS part of Homa)
+- virtual CPUs share the CPUs of the host
 - the kernel clock is coarse (`notsc` and no HPET: refined-jiffies)
 - the host shares its CPUs between the VMs and its other work
 
@@ -612,7 +615,7 @@ sudo mount /dev/loop0p2 /mnt/rw         # ext2 (your changes: rw_root/)
 | `rootfs/` | root filesystem files (`base`, `network`, ...) |
 | `fs_init/` | small init program for the persistent disk (mounts squashfs + overlay) |
 | `packages/` | extra programs (musl, AX.25, Dire Wolf, ALSA, ...) |
-| `patches/` | patches for the programs (and for Homa) |
+| `patches/` | patches for the programs |
 | `homa/` | environment and start script for two Homa test VMs |
 | `scripts/` | helper scripts for the config files |
 | `build/out/` | output files: kernel, initramfs, disk image, ISO |

@@ -43,7 +43,7 @@ else
     echo "Note: no access to /dev/kvm, the VM runs without KVM (slow)."
 fi
 
-exec qemu-system-x86_64 $accel -m "$HOMA_MEM" -no-reboot -nographic \
+exec qemu-system-x86_64 $accel -m "$HOMA_MEM" -smp "$HOMA_CPUS" -no-reboot -nographic \
     -kernel "$HOMA_IMAGE-bzImage" -initrd "$HOMA_IMAGE-initramfs.cpio.xz" \
     -append "$HOMA_CMDLINE" \
     -drive file="$disk",format=raw,if=virtio \

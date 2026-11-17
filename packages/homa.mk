@@ -8,10 +8,10 @@ HOMA_REPO := https://github.com/PlatformLab/HomaModule.git
 HOMA_COMMIT := 07ce63ef153207a953c42a749ee2429fb5282f55
 HOMA_SRC := $(SOURCES)/homa
 HOMA_PREFIX := $(BUILD)/homa
-HOMA_PREPARED := $(STAMP)/homa.prepared
-HOMA_PATCHED := $(STAMP)/homa.patched
-# Lets Homa build without IPsec (XFRM), SMP (RPS) and xxhash.
-HOMA_PATCH := patches/homa-small-kernel.patch
+# The stamp names the commit: a new commit (or an old tree with the former
+# small-kernel patch) is fetched again. No patch: the kernel has what Homa
+# uses (SMP/RPS, XFRM, xxhash; configs/kernel/homa.config).
+HOMA_PREPARED := $(STAMP)/homa-$(HOMA_COMMIT).prepared
 
 # C++ programs: musl-gcc has no C++ library, so they are linked statically
 # with the host g++ (glibc). Because of the static glibc (LGPL) they are for
@@ -41,15 +41,10 @@ $(HOMA_PREPARED):
 		git checkout -q FETCH_HEAD
 	@touch $@
 
-$(HOMA_PATCHED): $(HOMA_PREPARED) $(HOMA_PATCH)
-	cd $(HOMA_SRC) && git clean -fdxq && git reset -q --hard
-	cd $(HOMA_SRC) && patch -p1 < $(abspath $(HOMA_PATCH))
-	@touch $@
-
 # The module is built against the configured kernel tree; 'modules' writes
 # Module.symvers, which the external build needs. Kbuild does not rebuild an
 # external module after a kernel config change, so it is cleaned then.
-homa: $(HOMA_PATCHED) kernel
+homa: $(HOMA_PREPARED) kernel
 	$(MAKE) -C $(KERNEL_SRC) O=$(KERNEL_BUILD) modules
 	if [ $(KERNEL_CONFIGURED) -nt $(HOMA_SRC)/homa.ko ]; then \
 	  $(MAKE) -C $(KERNEL_SRC) O=$(KERNEL_BUILD) M=$(HOMA_SRC) clean; \
@@ -58,13 +53,13 @@ homa: $(HOMA_PATCHED) kernel
 	@mkdir -p $(HOMA_PREFIX)/lib/modules
 	strip --strip-debug -o $(HOMA_PREFIX)/lib/modules/homa.ko $(HOMA_SRC)/homa.ko
 
-homa-utils: $(HOMA_PATCHED)
+homa-utils: $(HOMA_PREPARED)
 	$(MAKE) -C $(HOMA_SRC)/util $(HOMA_UTILS) CFLAGS="-Wall -fno-strict-aliasing -Os -I.. -static"
 	@mkdir -p $(HOMA_PREFIX)/usr/bin
 	cp $(addprefix $(HOMA_SRC)/util/,$(HOMA_UTILS)) $(HOMA_PREFIX)/usr/bin/
 
 homa-clean:
-	rm -rf $(HOMA_SRC) $(HOMA_PREFIX) $(HOMA_PREPARED) $(HOMA_PATCHED)
+	rm -rf $(HOMA_SRC) $(HOMA_PREFIX) $(STAMP)/homa*.prepared $(STAMP)/homa.patched
 
 .PHONY: homa homa-utils homa-clean
 
